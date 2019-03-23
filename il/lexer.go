@@ -14,7 +14,7 @@ func isdecdigit(ch rune) bool {
 }
 
 func ishexdigit(ch rune) bool {
-	return ('0' <= ch && ch <= '9') || ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z')
+	return ('0' <= ch && ch <= '9') || ('A' <= ch && ch <= 'F') || ('a' <= ch && ch <= 'f')
 }
 
 const eof rune = 0
