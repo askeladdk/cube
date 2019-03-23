@@ -55,11 +55,9 @@ func (this *Lexer) token(tokenType TokenType) Token {
 	}
 }
 
-func (this *Lexer) advance() rune {
-	ch := this.peek
+func (this *Lexer) advance() {
 	this.position += this.peekw
 	this.peek, this.peekw, _ = this.reader.ReadRune()
-	return ch
 }
 
 func (this *Lexer) match(expected rune) bool {
@@ -175,7 +173,8 @@ func (this *Lexer) Scan() Token {
 
 	this.initial = this.position
 
-	ch := this.advance()
+	ch := this.peek
+	this.advance()
 
 	switch ch {
 	case eof:
