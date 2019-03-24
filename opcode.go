@@ -4,9 +4,13 @@ type OpcodeType int
 
 const (
 	NOP OpcodeType = iota
+	SET
 	ADD
+	SUB
 	MUL
 	RET
+	GOTO
+	IFZ
 )
 
 type Opcode struct {
@@ -15,9 +19,13 @@ type Opcode struct {
 
 var Opcodes = []Opcode{
 	Opcode{"NOP"},
+	Opcode{"SET"},
 	Opcode{"ADD"},
+	Opcode{"SUB"},
 	Opcode{"MUL"},
 	Opcode{"RET"},
+	Opcode{"GOTO"},
+	Opcode{"IFZ"},
 }
 
 func (this *OpcodeType) String() string {

@@ -47,23 +47,6 @@ func (this *Identifier) String() string {
 	return fmt.Sprintf("Identifier<%s>", this.Name)
 }
 
-type Return struct {
-	Src Node
-}
-
-func (this *Return) Traverse(vi Visitor) (Node, error) {
-	if src, err := vi.Visit(this.Src); err != nil {
-		return nil, err
-	} else {
-		this.Src = src
-		return this, nil
-	}
-}
-
-func (this *Return) String() string {
-	return fmt.Sprintf("Return<>")
-}
-
 type Parameter struct {
 	Name     string
 	TypeName Node
@@ -142,34 +125,34 @@ func (this *Function) String() string {
 	return fmt.Sprintf("Function<%s>", this.Name)
 }
 
-type ThreeAddressInstruction struct {
+type Instruction struct {
 	OpcodeType cube.OpcodeType
-	Dst        Node
-	SrcA       Node
-	SrcB       Node
+	OpA        Node
+	OpB        Node
+	OpC        Node
 	Next       Node
 }
 
-func (this *ThreeAddressInstruction) Traverse(vi Visitor) (Node, error) {
-	if dst, err := vi.Visit(this.Dst); err != nil {
+func (this *Instruction) Traverse(vi Visitor) (Node, error) {
+	if opa, err := vi.Visit(this.OpA); err != nil {
 		return nil, err
-	} else if srca, err := vi.Visit(this.SrcA); err != nil {
+	} else if opb, err := vi.Visit(this.OpB); err != nil {
 		return nil, err
-	} else if srcb, err := vi.Visit(this.SrcB); err != nil {
+	} else if opc, err := vi.Visit(this.OpC); err != nil {
 		return nil, err
 	} else if next, err := vi.Visit(this.Next); err != nil {
 		return nil, err
 	} else {
-		this.Dst = dst
-		this.SrcA = srca
-		this.SrcB = srcb
+		this.OpA = opa
+		this.OpB = opb
+		this.OpC = opc
 		this.Next = next
 		return this, nil
 	}
 }
 
-func (this *ThreeAddressInstruction) String() string {
-	return fmt.Sprintf("ThreeAddressInstruction<%s>", &this.OpcodeType)
+func (this *Instruction) String() string {
+	return fmt.Sprintf("Instruction<%s>", &this.OpcodeType)
 }
 
 type Error struct {

@@ -23,8 +23,12 @@ const (
 	I64
 	IDENT
 	FUNC
+	SET
 	RET
+	GOTO
+	IFZ
 	ADD
+	SUB
 	MUL
 )
 
@@ -36,6 +40,7 @@ type Token struct {
 
 var tokenToOpcodeType = map[TokenType]cube.OpcodeType{
 	ADD: cube.ADD,
+	SUB: cube.SUB,
 	MUL: cube.MUL,
-	RET: cube.RET,
+	IFZ: cube.IFZ,
 }

@@ -135,27 +135,48 @@ func (this *Lexer) matchKeyword(offset int, rest string, tokenType TokenType) To
 	return IDENT
 }
 
+func (this *Lexer) peekat(offset int) byte {
+	return this.source[this.initial+offset]
+}
+
 func (this *Lexer) identifierType() TokenType {
-	switch this.source[this.initial] {
+	switch this.peekat(0) {
 	case 'a':
 		return this.matchKeyword(1, "dd", ADD)
 	case 'i':
-		switch this.source[this.initial+1] {
+		switch this.peekat(1) {
 		case '3':
-			if this.source[this.initial+2] == '2' {
+			if this.peekat(2) == '2' {
 				return I32
 			}
 		case '6':
-			if this.source[this.initial+2] == '4' {
+			if this.peekat(2) == '4' {
 				return I64
+			}
+		case 'f':
+			if this.peekat(2) == 'z' {
+				return IFZ
 			}
 		}
 	case 'f':
 		return this.matchKeyword(1, "unc", FUNC)
+	case 'g':
+		return this.matchKeyword(1, "oto", GOTO)
 	case 'm':
 		return this.matchKeyword(1, "ul", MUL)
 	case 'r':
 		return this.matchKeyword(1, "et", RET)
+	case 's':
+		switch this.peekat(1) {
+		case 'u':
+			if this.peekat(2) == 'b' {
+				return SUB
+			}
+		case 'e':
+			if this.peekat(2) == 't' {
+				return SET
+			}
+		}
 	}
 
 	return IDENT

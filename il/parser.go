@@ -94,52 +94,127 @@ func (this *Parser) atom() (ast.Node, error) {
 	}
 }
 
-func (this *Parser) ret() (*ast.Return, error) {
-	if node, err := this.atom(); err != nil {
+func (this *Parser) ret() (*ast.Instruction, error) {
+	if opa, err := this.atom(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Return{Src: node}, nil
+		return &ast.Instruction{
+			OpcodeType: cube.RET,
+			OpA:        opa,
+			OpB:        nil,
+			OpC:        nil,
+			Next:       nil,
+		}, nil
 	}
 }
 
-func (this *Parser) threeaddress(opcode cube.OpcodeType) (*ast.ThreeAddressInstruction, error) {
-	if dst, err := this.identifier(); err != nil {
+func (this *Parser) set() (*ast.Instruction, error) {
+	if opa, err := this.identifier(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, err
-	} else if srca, err := this.atom(); err != nil {
-		return nil, err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return nil, this.unexpected()
-	} else if srcb, err := this.atom(); err != nil {
+	} else if opb, err := this.atom(); err != nil {
 		return nil, err
 	} else if next, err := this.instructions(); err != nil {
 		return nil, err
 	} else {
-		return &ast.ThreeAddressInstruction{opcode, dst, srca, srcb, next}, nil
+		return &ast.Instruction{
+			OpcodeType: cube.SET,
+			OpA:        opa,
+			OpB:        opb,
+			OpC:        nil,
+			Next:       next,
+		}, nil
 	}
 }
 
-func (this *Parser) instructions() (ast.Node, error) {
-	tokenType := this.peek.Type
-	switch tokenType {
-	case ADD:
-		fallthrough
-	case MUL:
-		if err := this.advance(); err != nil {
-			return nil, err
-		} else {
-			opcode, _ := tokenToOpcodeType[tokenType]
-			return this.threeaddress(opcode)
-		}
-	case RET:
-		if err := this.advance(); err != nil {
-			return nil, err
-		} else {
-			return this.ret()
-		}
-	default:
+func (this *Parser) gotoinsr() (*ast.Instruction, error) {
+	if opa, err := this.identifier(); err != nil {
+		return nil, err
+	} else {
+		return &ast.Instruction{
+			OpcodeType: cube.GOTO,
+			OpA:        opa,
+			OpB:        nil,
+			OpC:        nil,
+			Next:       nil,
+		}, nil
+	}
+}
+
+func (this *Parser) conditional(opcode cube.OpcodeType) (*ast.Instruction, error) {
+	if opa, err := this.atom(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, err
+	} else if opb, err := this.identifier(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, this.unexpected()
+	} else if opc, err := this.identifier(); err != nil {
+		return nil, err
+	} else {
+		return &ast.Instruction{
+			OpcodeType: opcode,
+			OpA:        opa,
+			OpB:        opb,
+			OpC:        opc,
+			Next:       nil,
+		}, nil
+	}
+}
+
+func (this *Parser) instruction(opcode cube.OpcodeType) (*ast.Instruction, error) {
+	if opa, err := this.identifier(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, err
+	} else if opb, err := this.atom(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, this.unexpected()
+	} else if opc, err := this.atom(); err != nil {
+		return nil, err
+	} else if next, err := this.instructions(); err != nil {
+		return nil, err
+	} else {
+		return &ast.Instruction{
+			OpcodeType: opcode,
+			OpA:        opa,
+			OpB:        opb,
+			OpC:        opc,
+			Next:       next,
+		}, nil
+	}
+}
+
+func (this *Parser) instructions() (*ast.Instruction, error) {
+	tokenType := this.peek.Type
+	possibleErr := this.unexpected()
+
+	if err := this.advance(); err != nil {
+		return nil, err
+	} else {
+		switch tokenType {
+		case ADD:
+			fallthrough
+		case SUB:
+			fallthrough
+		case MUL:
+			opcode, _ := tokenToOpcodeType[tokenType]
+			return this.instruction(opcode)
+		case RET:
+			return this.ret()
+		case SET:
+			return this.set()
+		case GOTO:
+			return this.gotoinsr()
+		case IFZ:
+			opcode, _ := tokenToOpcodeType[tokenType]
+			return this.conditional(opcode)
+		default:
+			return nil, possibleErr
+		}
 	}
 }
 

@@ -4,35 +4,54 @@ import "testing"
 
 func TestParseProgram(t *testing.T) {
 	source := `
-    func fma(a i64, b i64, c i64) i64 {
+	func pow(b i64, e i64) i64 {
         entry:
-            mul d, a, b
-            add e, d, c
-            ret e
+			set r, 1
+			goto loop
+        loop:
+            ifz e, done, body
+        body:
+            mul r, r, b
+            sub e, e, 1
+            goto loop
+        done:
+            ret r
     }`
 
 	test := []string{
 		"Program<>",
 		"Unit<test.cubeasm>",
-		"Function<fma>",
-		"Parameter<a>",
-		"TypeName<int64>",
+		"Function<pow>",
 		"Parameter<b>",
 		"TypeName<int64>",
-		"Parameter<c>",
+		"Parameter<e>",
 		"TypeName<int64>",
 		"TypeName<int64>",
 		"Block<entry>",
-		"ThreeAddressInstruction<MUL>",
-		"Identifier<d>",
-		"Identifier<a>",
+		"Instruction<SET>",
+		"Identifier<r>",
+		"Integer<1>",
+		"Instruction<GOTO>",
+		"Identifier<loop>",
+		"Block<loop>",
+		"Instruction<IFZ>",
+		"Identifier<e>",
+		"Identifier<done>",
+		"Identifier<body>",
+		"Block<body>",
+		"Instruction<MUL>",
+		"Identifier<r>",
+		"Identifier<r>",
 		"Identifier<b>",
-		"ThreeAddressInstruction<ADD>",
+		"Instruction<SUB>",
 		"Identifier<e>",
-		"Identifier<d>",
-		"Identifier<c>",
-		"Return<>",
 		"Identifier<e>",
+		"Integer<1>",
+		"Instruction<GOTO>",
+		"Identifier<loop>",
+		"Block<done>",
+		"Instruction<RET>",
+		"Identifier<r>",
 	}
 
 	if node, err := ParseProgram("test.cubeasm", source); err != nil {
