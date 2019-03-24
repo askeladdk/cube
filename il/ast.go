@@ -35,16 +35,46 @@ func (this *Integer) String() string {
 	return fmt.Sprintf("Integer<%v>", this.Value)
 }
 
-type Identifier struct {
+type Def struct {
+	Name     string
+	TypeName Node
+}
+
+func (this *Def) Traverse(vi Visitor) (Node, error) {
+	if typename, err := vi.Visit(this.TypeName); err != nil {
+		return nil, err
+	} else {
+		this.TypeName = typename
+		return this, nil
+	}
+}
+
+func (this *Def) String() string {
+	return fmt.Sprintf("Def<%s>", this.Name)
+}
+
+type Use struct {
 	Name string
 }
 
-func (this *Identifier) Traverse(vi Visitor) (Node, error) {
+func (this *Use) Traverse(vi Visitor) (Node, error) {
 	return this, nil
 }
 
-func (this *Identifier) String() string {
-	return fmt.Sprintf("Identifier<%s>", this.Name)
+func (this *Use) String() string {
+	return fmt.Sprintf("Use<%s>", this.Name)
+}
+
+type LabelUse struct {
+	Name string
+}
+
+func (this *LabelUse) Traverse(vi Visitor) (Node, error) {
+	return this, nil
+}
+
+func (this *LabelUse) String() string {
+	return fmt.Sprintf("LabelUse<%s>", this.Name)
 }
 
 type Parameter struct {
@@ -70,21 +100,17 @@ func (this *Parameter) String() string {
 }
 
 type Block struct {
-	Name string
-	// Parameters   Node
+	Name         string
 	Instructions Node
 	Next         Node
 }
 
 func (this *Block) Traverse(vi Visitor) (Node, error) {
-	// if parameter, err := vi.Visit(this.Parameters); err != nil {
-	//     return nil, err
 	if instruction, err := vi.Visit(this.Instructions); err != nil {
 		return nil, err
 	} else if next, err := vi.Visit(this.Next); err != nil {
 		return nil, err
 	} else {
-		// this.Parameters = parameter
 		this.Instructions = instruction
 		this.Next = next
 		return this, nil

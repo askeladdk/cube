@@ -77,15 +77,25 @@ func (this *Parser) integer() (*Integer, error) {
 	}
 }
 
-func (this *Parser) identifier() (*Identifier, error) {
+func (this *Parser) def() (*Def, error) {
 	name := this.peek.Value
-	return &Identifier{Name: name}, this.advance()
+	return &Def{Name: name}, this.advance()
+}
+
+func (this *Parser) use() (*Use, error) {
+	name := this.peek.Value
+	return &Use{Name: name}, this.advance()
+}
+
+func (this *Parser) labeluse() (*LabelUse, error) {
+	name := this.peek.Value
+	return &LabelUse{Name: name}, this.advance()
 }
 
 func (this *Parser) atom() (Node, error) {
 	switch this.peek.Type {
 	case IDENT:
-		return this.identifier()
+		return this.use()
 	case INTEGER:
 		return this.integer()
 	default:
@@ -108,7 +118,7 @@ func (this *Parser) ret() (*Instruction, error) {
 }
 
 func (this *Parser) set() (*Instruction, error) {
-	if opa, err := this.identifier(); err != nil {
+	if opa, err := this.def(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, err
@@ -128,7 +138,7 @@ func (this *Parser) set() (*Instruction, error) {
 }
 
 func (this *Parser) gotoinsr() (*Instruction, error) {
-	if opa, err := this.identifier(); err != nil {
+	if opa, err := this.labeluse(); err != nil {
 		return nil, err
 	} else {
 		return &Instruction{
@@ -146,11 +156,11 @@ func (this *Parser) conditional(opcode cube.OpcodeType) (*Instruction, error) {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, err
-	} else if opb, err := this.identifier(); err != nil {
+	} else if opb, err := this.labeluse(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, this.unexpected()
-	} else if opc, err := this.identifier(); err != nil {
+	} else if opc, err := this.labeluse(); err != nil {
 		return nil, err
 	} else {
 		return &Instruction{
@@ -164,7 +174,7 @@ func (this *Parser) conditional(opcode cube.OpcodeType) (*Instruction, error) {
 }
 
 func (this *Parser) instruction(opcode cube.OpcodeType) (*Instruction, error) {
-	if opa, err := this.identifier(); err != nil {
+	if opa, err := this.def(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, err
@@ -236,7 +246,11 @@ func (this *Parser) parameter() (*Parameter, error) {
 	} else if next, err := this.parameterNext(); err != nil {
 		return nil, err
 	} else {
-		return &Parameter{Name: name.Value, TypeName: typename, Next: next}, nil
+		return &Parameter{
+			Name:     name.Value,
+			TypeName: typename,
+			Next:     next,
+		}, nil
 	}
 }
 
@@ -289,7 +303,11 @@ func (this *Parser) block(name string) (*Block, error) {
 	} else if next, err := this.blocks(); err != nil {
 		return nil, err
 	} else {
-		return &Block{name, instructions, next}, nil
+		return &Block{
+			Name:         name,
+			Instructions: instructions,
+			Next:         next,
+		}, nil
 	}
 }
 

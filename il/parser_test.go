@@ -80,11 +80,11 @@ func TestParseBlockDoubleFunc(t *testing.T) {
 		"TypeName<int64>",
 		"Block<entry>",
 		"Instruction<ADD>",
-		"Identifier<b>",
-		"Identifier<a>",
-		"Identifier<a>",
+		"Def<b>",
+		"Use<a>",
+		"Use<a>",
 		"Instruction<RET>",
-		"Identifier<b>",
+		"Use<b>",
 	}
 
 	lexer := NewLexer("<source>", source)
