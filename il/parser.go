@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/askeladdk/cube"
-	"github.com/askeladdk/cube/ast"
 )
 
 type Parser struct {
@@ -63,7 +62,7 @@ func (this *Parser) expect(tt TokenType) (Token, error) {
 	}
 }
 
-func (this *Parser) integer() (*ast.Integer, error) {
+func (this *Parser) integer() (*Integer, error) {
 	s := this.peek.Value
 
 	base := 0
@@ -74,16 +73,16 @@ func (this *Parser) integer() (*ast.Integer, error) {
 	if num, err := strconv.ParseInt(s, base, 64); err != nil {
 		return nil, this.error(err.Error())
 	} else {
-		return &ast.Integer{Value: num}, this.advance()
+		return &Integer{Value: num}, this.advance()
 	}
 }
 
-func (this *Parser) identifier() (*ast.Identifier, error) {
+func (this *Parser) identifier() (*Identifier, error) {
 	name := this.peek.Value
-	return &ast.Identifier{Name: name}, this.advance()
+	return &Identifier{Name: name}, this.advance()
 }
 
-func (this *Parser) atom() (ast.Node, error) {
+func (this *Parser) atom() (Node, error) {
 	switch this.peek.Type {
 	case IDENT:
 		return this.identifier()
@@ -94,11 +93,11 @@ func (this *Parser) atom() (ast.Node, error) {
 	}
 }
 
-func (this *Parser) ret() (*ast.Instruction, error) {
+func (this *Parser) ret() (*Instruction, error) {
 	if opa, err := this.atom(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Instruction{
+		return &Instruction{
 			OpcodeType: cube.RET,
 			OpA:        opa,
 			OpB:        nil,
@@ -108,7 +107,7 @@ func (this *Parser) ret() (*ast.Instruction, error) {
 	}
 }
 
-func (this *Parser) set() (*ast.Instruction, error) {
+func (this *Parser) set() (*Instruction, error) {
 	if opa, err := this.identifier(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -118,7 +117,7 @@ func (this *Parser) set() (*ast.Instruction, error) {
 	} else if next, err := this.instructions(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Instruction{
+		return &Instruction{
 			OpcodeType: cube.SET,
 			OpA:        opa,
 			OpB:        opb,
@@ -128,11 +127,11 @@ func (this *Parser) set() (*ast.Instruction, error) {
 	}
 }
 
-func (this *Parser) gotoinsr() (*ast.Instruction, error) {
+func (this *Parser) gotoinsr() (*Instruction, error) {
 	if opa, err := this.identifier(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Instruction{
+		return &Instruction{
 			OpcodeType: cube.GOTO,
 			OpA:        opa,
 			OpB:        nil,
@@ -142,7 +141,7 @@ func (this *Parser) gotoinsr() (*ast.Instruction, error) {
 	}
 }
 
-func (this *Parser) conditional(opcode cube.OpcodeType) (*ast.Instruction, error) {
+func (this *Parser) conditional(opcode cube.OpcodeType) (*Instruction, error) {
 	if opa, err := this.atom(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -154,7 +153,7 @@ func (this *Parser) conditional(opcode cube.OpcodeType) (*ast.Instruction, error
 	} else if opc, err := this.identifier(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Instruction{
+		return &Instruction{
 			OpcodeType: opcode,
 			OpA:        opa,
 			OpB:        opb,
@@ -164,7 +163,7 @@ func (this *Parser) conditional(opcode cube.OpcodeType) (*ast.Instruction, error
 	}
 }
 
-func (this *Parser) instruction(opcode cube.OpcodeType) (*ast.Instruction, error) {
+func (this *Parser) instruction(opcode cube.OpcodeType) (*Instruction, error) {
 	if opa, err := this.identifier(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -178,7 +177,7 @@ func (this *Parser) instruction(opcode cube.OpcodeType) (*ast.Instruction, error
 	} else if next, err := this.instructions(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Instruction{
+		return &Instruction{
 			OpcodeType: opcode,
 			OpA:        opa,
 			OpB:        opb,
@@ -188,7 +187,7 @@ func (this *Parser) instruction(opcode cube.OpcodeType) (*ast.Instruction, error
 	}
 }
 
-func (this *Parser) instructions() (*ast.Instruction, error) {
+func (this *Parser) instructions() (*Instruction, error) {
 	tokenType := this.peek.Type
 	possibleErr := this.unexpected()
 
@@ -218,18 +217,18 @@ func (this *Parser) instructions() (*ast.Instruction, error) {
 	}
 }
 
-func (this *Parser) typename() (*ast.TypeName, error) {
+func (this *Parser) typename() (*TypeName, error) {
 	switch this.peek.Type {
 	case I32:
-		return &ast.TypeName{&cube.TypeInt32}, this.advance()
+		return &TypeName{&cube.TypeInt32}, this.advance()
 	case I64:
-		return &ast.TypeName{&cube.TypeInt64}, this.advance()
+		return &TypeName{&cube.TypeInt64}, this.advance()
 	default:
 		return nil, this.unexpected()
 	}
 }
 
-func (this *Parser) parameter() (*ast.Parameter, error) {
+func (this *Parser) parameter() (*Parameter, error) {
 	if name, err := this.expect(IDENT); err != nil {
 		return nil, err
 	} else if typename, err := this.typename(); err != nil {
@@ -240,14 +239,14 @@ func (this *Parser) parameter() (*ast.Parameter, error) {
 		if next, err := this.parameter(); err != nil {
 			return nil, err
 		} else {
-			return &ast.Parameter{Name: name.Value, TypeName: typename, Next: next}, nil
+			return &Parameter{Name: name.Value, TypeName: typename, Next: next}, nil
 		}
 	} else {
-		return &ast.Parameter{Name: name.Value, TypeName: typename}, nil
+		return &Parameter{Name: name.Value, TypeName: typename}, nil
 	}
 }
 
-func (this *Parser) parameters() (*ast.Parameter, error) {
+func (this *Parser) parameters() (*Parameter, error) {
 	if _, err := this.expect(PAREN_L); err != nil {
 		return nil, err
 	} else if ok, err := this.accept(PAREN_R); err != nil {
@@ -263,7 +262,7 @@ func (this *Parser) parameters() (*ast.Parameter, error) {
 	}
 }
 
-func (this *Parser) block(name string) (*ast.Block, error) {
+func (this *Parser) block(name string) (*Block, error) {
 	if _, err := this.expect(COLON); err != nil {
 		return nil, err
 	} else if instructions, err := this.instructions(); err != nil {
@@ -271,11 +270,11 @@ func (this *Parser) block(name string) (*ast.Block, error) {
 	} else if next, err := this.blocks(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Block{name, instructions, next}, nil
+		return &Block{name, instructions, next}, nil
 	}
 }
 
-func (this *Parser) blocks() (*ast.Block, error) {
+func (this *Parser) blocks() (*Block, error) {
 	token := this.peek
 	switch token.Type {
 	case IDENT:
@@ -291,7 +290,7 @@ func (this *Parser) blocks() (*ast.Block, error) {
 	}
 }
 
-func (this *Parser) funcbody() (*ast.Block, error) {
+func (this *Parser) funcbody() (*Block, error) {
 	if _, err := this.expect(CURLY_L); err != nil {
 		return nil, err
 	} else if block, err := this.blocks(); err != nil {
@@ -301,7 +300,7 @@ func (this *Parser) funcbody() (*ast.Block, error) {
 	}
 }
 
-func (this *Parser) function() (*ast.Function, error) {
+func (this *Parser) function() (*Function, error) {
 	if name, err := this.expect(IDENT); err != nil {
 		return nil, err
 	} else if params, err := this.parameters(); err != nil {
@@ -313,7 +312,7 @@ func (this *Parser) function() (*ast.Function, error) {
 	} else if next, err := this.definitions(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Function{
+		return &Function{
 			Name:       name.Value,
 			Parameters: params,
 			Returns:    returns,
@@ -323,7 +322,7 @@ func (this *Parser) function() (*ast.Function, error) {
 	}
 }
 
-func (this *Parser) definitions() (ast.Node, error) {
+func (this *Parser) definitions() (Node, error) {
 	switch this.peek.Type {
 	case FUNC:
 		if err := this.advance(); err != nil {
@@ -338,11 +337,11 @@ func (this *Parser) definitions() (ast.Node, error) {
 	}
 }
 
-func (this *Parser) unit(next *ast.Unit) (*ast.Unit, error) {
+func (this *Parser) unit(next *Unit) (*Unit, error) {
 	if definitions, err := this.definitions(); err != nil {
 		return nil, err
 	} else {
-		return &ast.Unit{
+		return &Unit{
 			Filename:    this.lexer.Filename(),
 			Definitions: definitions,
 			Next:        next,
@@ -350,7 +349,7 @@ func (this *Parser) unit(next *ast.Unit) (*ast.Unit, error) {
 	}
 }
 
-func (this *Parser) Parse(next *ast.Unit) (*ast.Unit, error) {
+func (this *Parser) Parse(next *Unit) (*Unit, error) {
 	if err := this.advance(); err != nil {
 		return nil, err
 	} else if unit, err := this.unit(next); err != nil {

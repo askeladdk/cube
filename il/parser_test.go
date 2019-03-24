@@ -4,26 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-
-	"github.com/askeladdk/cube/ast"
 )
 
 type tracer struct {
 	trace []string
 }
 
-func (this *tracer) Visit(n ast.Node) (ast.Node, error) {
+func (this *tracer) Visit(n Node) (Node, error) {
 	this.trace = append(this.trace, n.String())
 	return n, nil
 }
 
-func (this *tracer) PostVisit(n ast.Node) (ast.Node, error) {
+func (this *tracer) PostVisit(n Node) (Node, error) {
 	return n, nil
 }
 
-func validateTrace(n ast.Node, test []string) error {
+func validateTrace(n Node, test []string) error {
 	tracer := tracer{}
-	ast.Traverse(&tracer, n)
+	Traverse(&tracer, n)
 	trace := tracer.trace
 
 	if len(trace) != len(test) {
