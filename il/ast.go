@@ -95,26 +95,43 @@ func (this *Block) String() string {
 	return fmt.Sprintf("Block<%s>", this.Name)
 }
 
-type Function struct {
-	Name       string
+type Signature struct {
 	Parameters Node
 	Returns    Node
-	Blocks     Node
-	Next       Node
+}
+
+func (this *Signature) Traverse(vi Visitor) (Node, error) {
+	if parameters, err := vi.Visit(this.Parameters); err != nil {
+		return nil, err
+	} else if returns, err := vi.Visit(this.Returns); err != nil {
+		return nil, err
+	} else {
+		this.Parameters = parameters
+		this.Returns = returns
+		return this, nil
+	}
+}
+
+func (this *Signature) String() string {
+	return "Signature<>"
+}
+
+type Function struct {
+	Name      string
+	Signature Node
+	Blocks    Node
+	Next      Node
 }
 
 func (this *Function) Traverse(vi Visitor) (Node, error) {
-	if parameter, err := vi.Visit(this.Parameters); err != nil {
-		return nil, err
-	} else if returns, err := vi.Visit(this.Returns); err != nil {
+	if signature, err := vi.Visit(this.Signature); err != nil {
 		return nil, err
 	} else if blocks, err := vi.Visit(this.Blocks); err != nil {
 		return nil, err
 	} else if next, err := vi.Visit(this.Next); err != nil {
 		return nil, err
 	} else {
-		this.Parameters = parameter
-		this.Returns = returns
+		this.Signature = signature
 		this.Blocks = blocks
 		this.Next = next
 		return this, nil

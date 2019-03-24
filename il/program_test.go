@@ -22,6 +22,7 @@ func TestParseProgram(t *testing.T) {
 		"Program<>",
 		"Unit<test.cubeasm>",
 		"Function<pow>",
+		"Signature<>",
 		"Parameter<b>",
 		"TypeName<int64>",
 		"Parameter<e>",

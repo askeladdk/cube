@@ -233,32 +233,51 @@ func (this *Parser) parameter() (*Parameter, error) {
 		return nil, err
 	} else if typename, err := this.typename(); err != nil {
 		return nil, err
-	} else if ok, err := this.accept(COMMA); err != nil {
+	} else if next, err := this.parameterNext(); err != nil {
 		return nil, err
-	} else if ok {
-		if next, err := this.parameter(); err != nil {
+	} else {
+		return &Parameter{Name: name.Value, TypeName: typename, Next: next}, nil
+	}
+}
+
+func (this *Parser) parameterNext() (*Parameter, error) {
+	switch this.peek.Type {
+	case COMMA:
+		if err := this.advance(); err != nil {
 			return nil, err
 		} else {
-			return &Parameter{Name: name.Value, TypeName: typename, Next: next}, nil
+			return this.parameter()
 		}
-	} else {
-		return &Parameter{Name: name.Value, TypeName: typename}, nil
+	case PAREN_R:
+		return nil, this.advance()
+	default:
+		return nil, this.unexpected()
 	}
 }
 
 func (this *Parser) parameters() (*Parameter, error) {
+	switch this.peek.Type {
+	case IDENT:
+		return this.parameter()
+	case PAREN_R:
+		return nil, this.advance()
+	default:
+		return nil, this.unexpected()
+	}
+}
+
+func (this *Parser) signature() (*Signature, error) {
 	if _, err := this.expect(PAREN_L); err != nil {
 		return nil, err
-	} else if ok, err := this.accept(PAREN_R); err != nil {
+	} else if parameters, err := this.parameters(); err != nil {
 		return nil, err
-	} else if ok {
-		return nil, nil
-	} else if parameter, err := this.parameter(); err != nil {
-		return nil, err
-	} else if _, err := this.expect(PAREN_R); err != nil {
+	} else if rtype, err := this.typename(); err != nil {
 		return nil, err
 	} else {
-		return parameter, nil
+		return &Signature{
+			Parameters: parameters,
+			Returns:    rtype,
+		}, nil
 	}
 }
 
@@ -303,9 +322,7 @@ func (this *Parser) funcbody() (*Block, error) {
 func (this *Parser) function() (*Function, error) {
 	if name, err := this.expect(IDENT); err != nil {
 		return nil, err
-	} else if params, err := this.parameters(); err != nil {
-		return nil, err
-	} else if returns, err := this.typename(); err != nil {
+	} else if signature, err := this.signature(); err != nil {
 		return nil, err
 	} else if blocks, err := this.funcbody(); err != nil {
 		return nil, err
@@ -313,11 +330,10 @@ func (this *Parser) function() (*Function, error) {
 		return nil, err
 	} else {
 		return &Function{
-			Name:       name.Value,
-			Parameters: params,
-			Returns:    returns,
-			Blocks:     blocks,
-			Next:       next,
+			Name:      name.Value,
+			Signature: signature,
+			Blocks:    blocks,
+			Next:      next,
 		}, nil
 	}
 }

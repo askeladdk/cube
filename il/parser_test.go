@@ -46,6 +46,7 @@ func TestParseFuncZero(t *testing.T) {
 
 	test := []string{
 		"Function<zero>",
+		"Signature<>",
 		"TypeName<int64>",
 		"Block<entry>",
 		"Instruction<RET>",
@@ -73,6 +74,7 @@ func TestParseBlockDoubleFunc(t *testing.T) {
 
 	test := []string{
 		"Function<double>",
+		"Signature<>",
 		"Parameter<a>",
 		"TypeName<int64>",
 		"TypeName<int64>",
