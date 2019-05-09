@@ -1,7 +1,5 @@
 package il
 
-import "github.com/askeladdk/cube"
-
 type TokenType int
 
 const (
@@ -36,11 +34,4 @@ type Token struct {
 	Type   TokenType
 	LineNo int
 	Value  string
-}
-
-var tokenToOpcodeType = map[TokenType]cube.OpcodeType{
-	ADD: cube.ADD,
-	SUB: cube.SUB,
-	MUL: cube.MUL,
-	IFZ: cube.IFZ,
 }

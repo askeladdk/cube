@@ -79,7 +79,10 @@ func (this *Parser) integer() (*Integer, error) {
 
 func (this *Parser) def() (*Def, error) {
 	name := this.peek.Value
-	return &Def{Name: name}, this.advance()
+	return &Def{
+		Name:     name,
+		TypeName: &TypeName{cube.TypeAuto},
+	}, this.advance()
 }
 
 func (this *Parser) use() (*Use, error) {
@@ -103,101 +106,90 @@ func (this *Parser) atom() (Node, error) {
 	}
 }
 
-func (this *Parser) ret() (*Instruction, error) {
-	if opa, err := this.atom(); err != nil {
+func (this *Parser) ret() (*Return, error) {
+	if src, err := this.atom(); err != nil {
 		return nil, err
 	} else {
-		return &Instruction{
-			OpcodeType: cube.RET,
-			OpA:        opa,
-			OpB:        nil,
-			OpC:        nil,
-			Next:       nil,
+		return &Return{
+			Src: src,
 		}, nil
 	}
 }
 
-func (this *Parser) set() (*Instruction, error) {
-	if opa, err := this.def(); err != nil {
+func (this *Parser) set() (*Set, error) {
+	if dst, err := this.def(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, err
-	} else if opb, err := this.atom(); err != nil {
+	} else if src, err := this.atom(); err != nil {
+		return nil, err
+	} else if next, err := this.instructions(); err != nil {
+		return nil, err
+	} else {
+		return &Set{
+			Dst:  dst,
+			Src:  src,
+			Next: next,
+		}, nil
+	}
+}
+
+func (this *Parser) gotoinsr() (*Branch, error) {
+	if label, err := this.labeluse(); err != nil {
+		return nil, err
+	} else {
+		return &Branch{
+			Label: label,
+		}, nil
+	}
+}
+
+func (this *Parser) conditional(opcodeToken TokenType) (*ConditionalBranch, error) {
+	if opa, err := this.atom(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, err
+	} else if labela, err := this.labeluse(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, this.unexpected()
+	} else if labelb, err := this.labeluse(); err != nil {
+		return nil, err
+	} else {
+		return &ConditionalBranch{
+			OpcodeToken: opcodeToken,
+			Cond:        opa,
+			LabelA:      labela,
+			LabelB:      labelb,
+		}, nil
+	}
+}
+
+func (this *Parser) instruction(opcodeToken TokenType) (*Instruction, error) {
+	if dst, err := this.use(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, err
+	} else if srca, err := this.atom(); err != nil {
+		return nil, err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return nil, this.unexpected()
+	} else if srcb, err := this.atom(); err != nil {
 		return nil, err
 	} else if next, err := this.instructions(); err != nil {
 		return nil, err
 	} else {
 		return &Instruction{
-			OpcodeType: cube.SET,
-			OpA:        opa,
-			OpB:        opb,
-			OpC:        nil,
-			Next:       next,
+			OpcodeToken: opcodeToken,
+			Dst:         dst,
+			SrcA:        srca,
+			SrcB:        srcb,
+			Next:        next,
 		}, nil
 	}
 }
 
-func (this *Parser) gotoinsr() (*Instruction, error) {
-	if opa, err := this.labeluse(); err != nil {
-		return nil, err
-	} else {
-		return &Instruction{
-			OpcodeType: cube.GOTO,
-			OpA:        opa,
-			OpB:        nil,
-			OpC:        nil,
-			Next:       nil,
-		}, nil
-	}
-}
-
-func (this *Parser) conditional(opcode cube.OpcodeType) (*Instruction, error) {
-	if opa, err := this.atom(); err != nil {
-		return nil, err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return nil, err
-	} else if opb, err := this.labeluse(); err != nil {
-		return nil, err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return nil, this.unexpected()
-	} else if opc, err := this.labeluse(); err != nil {
-		return nil, err
-	} else {
-		return &Instruction{
-			OpcodeType: opcode,
-			OpA:        opa,
-			OpB:        opb,
-			OpC:        opc,
-			Next:       nil,
-		}, nil
-	}
-}
-
-func (this *Parser) instruction(opcode cube.OpcodeType) (*Instruction, error) {
-	if opa, err := this.def(); err != nil {
-		return nil, err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return nil, err
-	} else if opb, err := this.atom(); err != nil {
-		return nil, err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return nil, this.unexpected()
-	} else if opc, err := this.atom(); err != nil {
-		return nil, err
-	} else if next, err := this.instructions(); err != nil {
-		return nil, err
-	} else {
-		return &Instruction{
-			OpcodeType: opcode,
-			OpA:        opa,
-			OpB:        opb,
-			OpC:        opc,
-			Next:       next,
-		}, nil
-	}
-}
-
-func (this *Parser) instructions() (*Instruction, error) {
+func (this *Parser) instructions() (Node, error) {
 	tokenType := this.peek.Type
 	possibleErr := this.unexpected()
 
@@ -210,8 +202,7 @@ func (this *Parser) instructions() (*Instruction, error) {
 		case SUB:
 			fallthrough
 		case MUL:
-			opcode, _ := tokenToOpcodeType[tokenType]
-			return this.instruction(opcode)
+			return this.instruction(tokenType)
 		case RET:
 			return this.ret()
 		case SET:
@@ -219,8 +210,7 @@ func (this *Parser) instructions() (*Instruction, error) {
 		case GOTO:
 			return this.gotoinsr()
 		case IFZ:
-			opcode, _ := tokenToOpcodeType[tokenType]
-			return this.conditional(opcode)
+			return this.conditional(tokenType)
 		default:
 			return nil, possibleErr
 		}
@@ -230,9 +220,9 @@ func (this *Parser) instructions() (*Instruction, error) {
 func (this *Parser) typename() (*TypeName, error) {
 	switch this.peek.Type {
 	case I32:
-		return &TypeName{&cube.TypeInt32}, this.advance()
+		return &TypeName{cube.TypeInt32}, this.advance()
 	case I64:
-		return &TypeName{&cube.TypeInt64}, this.advance()
+		return &TypeName{cube.TypeInt64}, this.advance()
 	default:
 		return nil, this.unexpected()
 	}

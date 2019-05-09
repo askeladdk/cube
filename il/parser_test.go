@@ -49,7 +49,7 @@ func TestParseFuncZero(t *testing.T) {
 		"Signature<>",
 		"TypeName<int64>",
 		"Block<entry>",
-		"Instruction<RET>",
+		"Return<>",
 		"Integer<0>",
 	}
 
@@ -79,11 +79,11 @@ func TestParseBlockDoubleFunc(t *testing.T) {
 		"TypeName<int64>",
 		"TypeName<int64>",
 		"Block<entry>",
-		"Instruction<ADD>",
-		"Def<b>",
+		"Instruction<20>",
+		"Use<b>",
 		"Use<a>",
 		"Use<a>",
-		"Instruction<RET>",
+		"Return<>",
 		"Use<b>",
 	}
 

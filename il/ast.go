@@ -36,8 +36,9 @@ func (this *Integer) String() string {
 }
 
 type Def struct {
-	Name     string
-	TypeName Node
+	Name      string
+	TypeName  Node
+	localInfo *localInfo
 }
 
 func (this *Def) Traverse(vi Visitor) (Node, error) {
@@ -54,7 +55,8 @@ func (this *Def) String() string {
 }
 
 type Use struct {
-	Name string
+	Name      string
+	localInfo *localInfo
 }
 
 func (this *Use) Traverse(vi Visitor) (Node, error) {
@@ -66,7 +68,8 @@ func (this *Use) String() string {
 }
 
 type LabelUse struct {
-	Name string
+	Name      string
+	blockInfo *blockInfo
 }
 
 func (this *LabelUse) Traverse(vi Visitor) (Node, error) {
@@ -78,9 +81,10 @@ func (this *LabelUse) String() string {
 }
 
 type Parameter struct {
-	Name     string
-	TypeName Node
-	Next     Node
+	Name      string
+	TypeName  Node
+	Next      Node
+	localInfo *localInfo
 }
 
 func (this *Parameter) Traverse(vi Visitor) (Node, error) {
@@ -147,6 +151,7 @@ type Function struct {
 	Signature Node
 	Blocks    Node
 	Next      Node
+	funcInfo  *funcInfo
 }
 
 func (this *Function) Traverse(vi Visitor) (Node, error) {
@@ -168,34 +173,120 @@ func (this *Function) String() string {
 	return fmt.Sprintf("Function<%s>", this.Name)
 }
 
-type Instruction struct {
-	OpcodeType cube.OpcodeType
-	OpA        Node
-	OpB        Node
-	OpC        Node
-	Next       Node
+type Set struct {
+	Dst  Node
+	Src  Node
+	Next Node
 }
 
-func (this *Instruction) Traverse(vi Visitor) (Node, error) {
-	if opa, err := vi.Visit(this.OpA); err != nil {
+func (this *Set) Traverse(vi Visitor) (Node, error) {
+	if dst, err := vi.Visit(this.Dst); err != nil {
 		return nil, err
-	} else if opb, err := vi.Visit(this.OpB); err != nil {
-		return nil, err
-	} else if opc, err := vi.Visit(this.OpC); err != nil {
+	} else if src, err := vi.Visit(this.Src); err != nil {
 		return nil, err
 	} else if next, err := vi.Visit(this.Next); err != nil {
 		return nil, err
 	} else {
-		this.OpA = opa
-		this.OpB = opb
-		this.OpC = opc
+		this.Dst = dst
+		this.Src = src
+		this.Next = next
+		return this, nil
+	}
+}
+
+func (this *Set) String() string {
+	return "Set<>"
+}
+
+type Branch struct {
+	Label Node
+}
+
+func (this *Branch) Traverse(vi Visitor) (Node, error) {
+	if label, err := vi.Visit(this.Label); err != nil {
+		return nil, err
+	} else {
+		this.Label = label
+		return this, nil
+	}
+}
+
+func (this *Branch) String() string {
+	return "Branch<>"
+}
+
+type ConditionalBranch struct {
+	Cond        Node
+	LabelA      Node
+	LabelB      Node
+	OpcodeToken TokenType
+}
+
+func (this *ConditionalBranch) Traverse(vi Visitor) (Node, error) {
+	if cond, err := vi.Visit(this.Cond); err != nil {
+		return nil, err
+	} else if labela, err := vi.Visit(this.LabelA); err != nil {
+		return nil, err
+	} else if labelb, err := vi.Visit(this.LabelB); err != nil {
+		return nil, err
+	} else {
+		this.Cond = cond
+		this.LabelA = labela
+		this.LabelB = labelb
+		return this, nil
+	}
+}
+
+func (this *ConditionalBranch) String() string {
+	return fmt.Sprintf("ConditionalBranch<%d>", this.OpcodeToken)
+}
+
+type Return struct {
+	Src Node
+}
+
+func (this *Return) Traverse(vi Visitor) (Node, error) {
+	if src, err := vi.Visit(this.Src); err != nil {
+		return nil, err
+	} else {
+		this.Src = src
+		return this, nil
+	}
+}
+
+func (this *Return) String() string {
+	return "Return<>"
+}
+
+type Instruction struct {
+	Dst         Node
+	SrcA        Node
+	SrcB        Node
+	Next        Node
+	OpcodeToken TokenType
+	Opcode      *cube.OpcodeType
+}
+
+func (this *Instruction) Traverse(vi Visitor) (Node, error) {
+	if dst, err := vi.Visit(this.Dst); err != nil {
+		return nil, err
+	} else if srca, err := vi.Visit(this.SrcA); err != nil {
+		return nil, err
+	} else if srcb, err := vi.Visit(this.SrcB); err != nil {
+		return nil, err
+	} else if next, err := vi.Visit(this.Next); err != nil {
+		return nil, err
+	} else {
+		this.Dst = dst
+		this.SrcA = srca
+		this.SrcB = srcb
 		this.Next = next
 		return this, nil
 	}
 }
 
 func (this *Instruction) String() string {
-	return fmt.Sprintf("Instruction<%s>", &this.OpcodeType)
+	return fmt.Sprintf("Instruction<%d>", this.OpcodeToken)
 }
 
 type Error struct {
