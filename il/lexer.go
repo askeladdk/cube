@@ -145,10 +145,6 @@ func (this *Lexer) identifierType() TokenType {
 		return this.matchKeyword(1, "dd", ADD)
 	case 'i':
 		switch this.peekat(1) {
-		case '3':
-			if this.peekat(2) == '2' {
-				return I32
-			}
 		case '6':
 			if this.peekat(2) == '4' {
 				return I64

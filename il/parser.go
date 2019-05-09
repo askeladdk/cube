@@ -219,8 +219,6 @@ func (this *Parser) instructions() (Node, error) {
 
 func (this *Parser) typename() (*TypeName, error) {
 	switch this.peek.Type {
-	case I32:
-		return &TypeName{cube.TypeInt32}, this.advance()
 	case I64:
 		return &TypeName{cube.TypeInt64}, this.advance()
 	default:

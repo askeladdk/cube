@@ -79,7 +79,7 @@ func TestParseBlockDoubleFunc(t *testing.T) {
 		"TypeName<int64>",
 		"TypeName<int64>",
 		"Block<entry>",
-		"Instruction<20>",
+		"Instruction<19>",
 		"Use<b>",
 		"Use<a>",
 		"Use<a>",

@@ -17,7 +17,6 @@ const (
 	MINUS
 	ASSIGN
 
-	I32
 	I64
 	IDENT
 	FUNC
