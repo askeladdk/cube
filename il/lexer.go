@@ -125,58 +125,37 @@ func (this *Lexer) whitespace() {
 	}
 }
 
-func (this *Lexer) matchKeyword(offset int, rest string, tokenType TokenType) TokenType {
-	if this.position-this.initial == offset+len(rest) {
-		s := this.source[this.initial+offset : this.position]
-		if s == rest {
-			return tokenType
-		}
-	}
-	return IDENT
-}
-
-func (this *Lexer) peekat(offset int) byte {
-	return this.source[this.initial+offset]
+var keywords = []struct {
+	ident     string
+	tokenType TokenType
+}{
+	// must be in alphabetical order
+	{"add", ADD},
+	{"func", FUNC},
+	{"goto", GOTO},
+	{"i64", I64},
+	{"ifz", IFZ},
+	{"mul", MUL},
+	{"ret", RET},
+	{"set", SET},
+	{"sub", SUB},
+	{"var", VAR},
 }
 
 func (this *Lexer) identifierType() TokenType {
-	switch this.peekat(0) {
-	case 'a':
-		return this.matchKeyword(1, "dd", ADD)
-	case 'i':
-		switch this.peekat(1) {
-		case '6':
-			if this.peekat(2) == '4' {
-				return I64
+	test := this.source[this.initial:this.position]
+	j := 0
+outer:
+	for _, keyword := range keywords {
+		if len(test) == len(keyword.ident) {
+			for ; j < len(test); j++ {
+				if test[j] != keyword.ident[j] {
+					continue outer
+				}
 			}
-		case 'f':
-			if this.peekat(2) == 'z' {
-				return IFZ
-			}
+			return keyword.tokenType
 		}
-	case 'f':
-		return this.matchKeyword(1, "unc", FUNC)
-	case 'g':
-		return this.matchKeyword(1, "oto", GOTO)
-	case 'm':
-		return this.matchKeyword(1, "ul", MUL)
-	case 'r':
-		return this.matchKeyword(1, "et", RET)
-	case 's':
-		switch this.peekat(1) {
-		case 'u':
-			if this.peekat(2) == 'b' {
-				return SUB
-			}
-		case 'e':
-			if this.peekat(2) == 't' {
-				return SET
-			}
-		}
-	case 'v':
-		return this.matchKeyword(1, "ar", VAR)
 	}
-
 	return IDENT
 }
 

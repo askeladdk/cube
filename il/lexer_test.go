@@ -2,75 +2,83 @@ package il
 
 import "testing"
 
-func TestScanHexNumber(t *testing.T) {
-	lexer := NewLexer("<source>", "0xa0f9 ")
-	token := lexer.Scan()
-	if token.Type != INTEGER || token.Value != "0xa0f9" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
+func TestScanNumbers(t *testing.T) {
+	lexer := NewLexer("<source>", `
+		0xa0f9
+		0b10011
+		42
+		-42
+	`)
+	numbers := []string{
+		"0xa0f9",
+		"0b10011",
+		"42",
+		"-42",
+	}
+
+	for _, expected := range numbers {
+		if token := lexer.Scan(); token.Type != INTEGER {
+			t.Fatal(token)
+		} else if token.Value != expected {
+			t.Fatal(token)
+		}
 	}
 }
 
-func TestScanBinNumber(t *testing.T) {
-	lexer := NewLexer("<source>", "0b10011 ")
-	token := lexer.Scan()
-	if token.Type != INTEGER || token.Value != "0b10011" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
+func TestScanKeywords(t *testing.T) {
+	lexer := NewLexer("<source>", `
+		goto
+		func
+		i64
+		ifz
+		set
+		sub
+		add
+		mul
+		var
+	`)
+
+	tokens := []TokenType{
+		GOTO,
+		FUNC,
+		I64,
+		IFZ,
+		SET,
+		SUB,
+		ADD,
+		MUL,
+		VAR,
+		EOF,
+	}
+
+	for _, expected := range tokens {
+		if token := lexer.Scan(); token.Type != expected {
+			t.Fatal(token)
+		}
 	}
 }
 
-func TestScanInteger(t *testing.T) {
-	lexer := NewLexer("<source>", "42 ")
-	token := lexer.Scan()
-	if token.Type != INTEGER || token.Value != "42" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
-	}
-}
+func TestScanIdentifiers(t *testing.T) {
+	lexer := NewLexer("<source>", `
+		a
+		sett
+		hëlló
+		你好
+	`)
 
-func TestScanNegativeInteger(t *testing.T) {
-	lexer := NewLexer("<source>", "-42 ")
-	token := lexer.Scan()
-	if token.Type != INTEGER || token.Value != "-42" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
+	identifiers := []string{
+		"a",
+		"sett",
+		"hëlló",
+		"你好",
 	}
-}
 
-func TestScanIdentifier(t *testing.T) {
-	lexer := NewLexer("<source>", "hëllõ ")
-	token := lexer.Scan()
-	if token.Type != IDENT || token.Value != "hëllõ" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
-	}
-}
-
-func TestScanKeyword(t *testing.T) {
-	lexer := NewLexer("<source>", "func ")
-	token := lexer.Scan()
-	if token.Type != FUNC || token.Value != "func" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
-	}
-}
-
-func TestScanKeyword2(t *testing.T) {
-	lexer := NewLexer("<source>", "function ")
-	token := lexer.Scan()
-	if token.Type != IDENT || token.Value != "function" {
-		t.Fatalf("wrong token %d %s", token.Type, token.Value)
-	}
-}
-
-func TestScanComment(t *testing.T) {
-	lexer := NewLexer("<source>", ";42\n;1337")
-	token := lexer.Scan()
-	if token.Type != EOF {
-		t.Fatalf("should be eof")
-	}
-}
-
-func TestScanWhitespace(t *testing.T) {
-	lexer := NewLexer("<source>", "\n; this is a test\n\t1337\n\n")
-	token := lexer.Scan()
-	if token.Type != INTEGER || token.LineNo != 3 || token.Value != "1337" {
-		t.Fatalf("wrong token :%d %d %s", token.LineNo, token.Type, token.Value)
+	for _, expected := range identifiers {
+		if token := lexer.Scan(); token.Type != IDENT {
+			t.Fatal(token)
+		} else if token.Value != expected {
+			t.Fatal(token)
+		}
 	}
 }
 
