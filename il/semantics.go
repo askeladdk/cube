@@ -3,6 +3,7 @@ package il
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/askeladdk/cube"
 )
@@ -11,33 +12,30 @@ type registerSymbol struct {
 	name  string
 	index int
 	dtype *cube.Type
-	node  Node
 	param bool
 }
 
 type blockSymbol struct {
 	name  string
 	index int
-	node  Node
 }
 
 type funcSymbol struct {
 	name   string
 	level  int
-	node   Node
 	locals map[string]*registerSymbol
 	blocks map[string]*blockSymbol
 	params []*registerSymbol
 	rtype  *cube.Type
 }
 
-type funcInfoStack []*funcSymbol
+type funcSymbolStack []*funcSymbol
 
-func (this funcInfoStack) push(s *funcSymbol) funcInfoStack {
+func (this funcSymbolStack) push(s *funcSymbol) funcSymbolStack {
 	return append(this, s)
 }
 
-func (this funcInfoStack) pop() (funcInfoStack, *funcSymbol) {
+func (this funcSymbolStack) pop() (funcSymbolStack, *funcSymbol) {
 	n := len(this)
 	if n > 0 {
 		return this[:n-1], this[n-1]
@@ -46,7 +44,7 @@ func (this funcInfoStack) pop() (funcInfoStack, *funcSymbol) {
 	}
 }
 
-func (this funcInfoStack) peek() (*funcSymbol, bool) {
+func (this funcSymbolStack) peek() (*funcSymbol, bool) {
 	n := len(this)
 	if n > 0 {
 		return this[n-1], true
@@ -66,11 +64,24 @@ func getDataType(n Node) (*cube.Type, bool) {
 	}
 }
 
-// First pass symbol resolution
+// Symbol resolution
+
+type unresolvedLabels map[string][]*LabelUse
 
 type symbolResolver struct {
-	symbolTable symbolTable
-	funcStack   funcInfoStack
+	symbolTable      symbolTable
+	funcStack        funcSymbolStack
+	unresolvedLabels map[string][]*LabelUse
+}
+
+func newSymbolResolver(symbolTable symbolTable) *symbolResolver {
+	return &symbolResolver{
+		symbolTable: symbolTable,
+	}
+}
+
+func (this *symbolResolver) DoPass(ast Node) (Node, error) {
+	return Traverse(this, ast)
 }
 
 func (this *symbolResolver) Visit(n Node) (Node, error) {
@@ -79,7 +90,6 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 		progInfo := &funcSymbol{
 			level: 0,
 			name:  "",
-			node:  n,
 		}
 		this.symbolTable[progInfo.name] = progInfo
 		this.funcStack = this.funcStack.push(progInfo)
@@ -92,10 +102,10 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 				name:   m.Name,
 				locals: map[string]*registerSymbol{},
 				blocks: map[string]*blockSymbol{},
-				node:   n,
 			}
 			this.symbolTable[m.Name] = funcinfo
 			this.funcStack = this.funcStack.push(funcinfo)
+			this.unresolvedLabels = unresolvedLabels{}
 			m.symbol = funcinfo
 		}
 	case *Signature:
@@ -111,7 +121,6 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 				name:  m.Name,
 				dtype: dtype,
 				index: len(curfunc.locals),
-				node:  m,
 				param: true,
 			}
 			curfunc.locals[m.Name] = m.symbol
@@ -127,7 +136,6 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 				name:  m.Name,
 				dtype: dtype,
 				index: len(curfunc.locals),
-				node:  m,
 				param: false,
 			}
 			curfunc.locals[m.Name] = m.symbol
@@ -144,11 +152,27 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 		if _, exists := curfunc.blocks[m.Name]; exists {
 			return nil, errors.New(fmt.Sprintf("block '%s' exists", m.Name))
 		} else {
-			curfunc.blocks[m.Name] = &blockSymbol{
+			symbol := &blockSymbol{
 				name:  m.Name,
 				index: len(curfunc.blocks),
-				node:  m,
 			}
+
+			curfunc.blocks[m.Name] = symbol
+
+			if unresolved, ok := this.unresolvedLabels[m.Name]; ok {
+				for _, node := range unresolved {
+					node.symbol = symbol
+				}
+				delete(this.unresolvedLabels, m.Name)
+			}
+		}
+	case *LabelUse:
+		curfunc, _ := this.funcStack.peek()
+		if symbol, exists := curfunc.blocks[m.Name]; exists {
+			m.symbol = symbol
+		} else {
+			unresolved := this.unresolvedLabels[m.Name]
+			this.unresolvedLabels[m.Name] = append(unresolved, m)
 		}
 	}
 	return n, nil
@@ -159,34 +183,17 @@ func (this *symbolResolver) PostVisit(n Node) (Node, error) {
 	case *Program:
 		this.funcStack, _ = this.funcStack.pop()
 	case *Function:
-		this.funcStack, _ = this.funcStack.pop()
-	}
-	return n, nil
-}
-
-// Second pass symbol resolution
-
-type symbolBacklinkResolver symbolResolver
-
-func (this *symbolBacklinkResolver) Visit(n Node) (Node, error) {
-	switch m := n.(type) {
-	case *Function:
-		this.funcStack = this.funcStack.push(m.symbol)
-	case *LabelUse:
-		curfunc, _ := this.funcStack.peek()
-		if blockInfo, exists := curfunc.blocks[m.Name]; exists {
-			m.symbol = blockInfo
+		if len(this.unresolvedLabels) > 0 {
+			curfunc, _ := this.funcStack.peek()
+			var labels []string
+			for k, _ := range this.unresolvedLabels {
+				labels = append(labels, k)
+			}
+			joined := strings.Join(labels, ", ")
+			return nil, errors.New(fmt.Sprintf("func %s: unresolved labels: %s", curfunc.name, joined))
 		} else {
-			return nil, errors.New(fmt.Sprintf("block '%s' does not exist", m.Name))
+			this.funcStack, _ = this.funcStack.pop()
 		}
-	}
-	return n, nil
-}
-
-func (this *symbolBacklinkResolver) PostVisit(n Node) (Node, error) {
-	switch n.(type) {
-	case *Function:
-		this.funcStack, _ = this.funcStack.pop()
 	}
 	return n, nil
 }

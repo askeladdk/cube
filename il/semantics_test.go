@@ -10,17 +10,15 @@ func TestSemanticAnalysis_NameResolve1(t *testing.T) {
 	source := `
 	func identity(a i64) i64 {
 		entry:
+			goto done
+		done:
 			ret a
 	}`
 	symbolTable := symbolTable{}
-	semantics := &symbolResolver{
-		symbolTable: symbolTable,
-	}
+	resolver := newSymbolResolver(symbolTable)
 	if ast, err := ParseProgram("test.cubeasm", source); err != nil {
 		t.Fatal(err)
-	} else if ast, err := Traverse(semantics, ast); err != nil {
-		t.Fatal(err)
-	} else if _, err := Traverse((*symbolBacklinkResolver)(semantics), ast); err != nil {
+	} else if _, err := resolver.DoPass(ast); err != nil {
 		t.Fatal(err)
 	} else {
 		if finfo, ok := symbolTable["identity"]; !ok {
@@ -44,18 +42,14 @@ func TestSemanticAnalysis_TypeCheck(t *testing.T) {
 			ret b
 	}`
 	symbolTable := symbolTable{}
-	semantics := &symbolResolver{
-		symbolTable: symbolTable,
-	}
+	resolver := newSymbolResolver(symbolTable)
 	typeChecker := &typeChecker{
 		symbolTable: symbolTable,
 	}
 
 	if ast, err := ParseProgram("test.cubeasm", source); err != nil {
 		t.Fatal(err)
-	} else if ast, err := Traverse(semantics, ast); err != nil {
-		t.Fatal(err)
-	} else if ast, err := Traverse((*symbolBacklinkResolver)(semantics), ast); err != nil {
+	} else if ast, err := resolver.DoPass(ast); err != nil {
 		t.Fatal(err)
 	} else if _, err := Traverse(typeChecker, ast); err != nil {
 		t.Fatal(err)
