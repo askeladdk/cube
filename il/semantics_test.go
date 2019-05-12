@@ -12,17 +12,18 @@ func TestSemanticAnalysis_NameResolve1(t *testing.T) {
 		entry:
 			ret a
 	}`
-	semantics := &semanticAnalysis{
-		funcs: map[string]*funcInfo{},
+	symbolTable := symbolTable{}
+	semantics := &symbolResolver{
+		symbolTable: symbolTable,
 	}
 	if ast, err := ParseProgram("test.cubeasm", source); err != nil {
 		t.Fatal(err)
-	} else if ast, err := Traverse((*nameResolver)(semantics), ast); err != nil {
+	} else if ast, err := Traverse(semantics, ast); err != nil {
 		t.Fatal(err)
-	} else if _, err := Traverse((*labelUseResolver)(semantics), ast); err != nil {
+	} else if _, err := Traverse((*symbolBacklinkResolver)(semantics), ast); err != nil {
 		t.Fatal(err)
 	} else {
-		if finfo, ok := semantics.funcs["identity"]; !ok {
+		if finfo, ok := symbolTable["identity"]; !ok {
 			t.Fatalf("function not found")
 		} else if finfo.level != 1 {
 			t.Fatalf("level != 1")
@@ -42,16 +43,21 @@ func TestSemanticAnalysis_TypeCheck(t *testing.T) {
 			add b, a, 1
 			ret b
 	}`
-	semantics := &semanticAnalysis{
-		funcs: map[string]*funcInfo{},
+	symbolTable := symbolTable{}
+	semantics := &symbolResolver{
+		symbolTable: symbolTable,
 	}
+	typeChecker := &typeChecker{
+		symbolTable: symbolTable,
+	}
+
 	if ast, err := ParseProgram("test.cubeasm", source); err != nil {
 		t.Fatal(err)
-	} else if ast, err := Traverse((*nameResolver)(semantics), ast); err != nil {
+	} else if ast, err := Traverse(semantics, ast); err != nil {
 		t.Fatal(err)
-	} else if ast, err := Traverse((*labelUseResolver)(semantics), ast); err != nil {
+	} else if ast, err := Traverse((*symbolBacklinkResolver)(semantics), ast); err != nil {
 		t.Fatal(err)
-	} else if _, err := Traverse((*typeChecker)(semantics), ast); err != nil {
+	} else if _, err := Traverse(typeChecker, ast); err != nil {
 		t.Fatal(err)
 	} else {
 		// t.Fatal(ast)

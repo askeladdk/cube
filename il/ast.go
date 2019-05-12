@@ -36,9 +36,9 @@ func (this *Integer) String() string {
 }
 
 type Def struct {
-	Name      string
-	TypeName  Node
-	localInfo *localInfo
+	Name     string
+	TypeName Node
+	symbol   *registerSymbol
 }
 
 func (this *Def) Traverse(vi Visitor) (Node, error) {
@@ -55,8 +55,8 @@ func (this *Def) String() string {
 }
 
 type Use struct {
-	Name      string
-	localInfo *localInfo
+	Name   string
+	symbol *registerSymbol
 }
 
 func (this *Use) Traverse(vi Visitor) (Node, error) {
@@ -68,8 +68,8 @@ func (this *Use) String() string {
 }
 
 type LabelUse struct {
-	Name      string
-	blockInfo *blockInfo
+	Name   string
+	symbol *blockSymbol
 }
 
 func (this *LabelUse) Traverse(vi Visitor) (Node, error) {
@@ -81,10 +81,10 @@ func (this *LabelUse) String() string {
 }
 
 type Parameter struct {
-	Name      string
-	TypeName  Node
-	Next      Node
-	localInfo *localInfo
+	Name     string
+	TypeName Node
+	Next     Node
+	symbol   *registerSymbol
 }
 
 func (this *Parameter) Traverse(vi Visitor) (Node, error) {
@@ -107,6 +107,7 @@ type Block struct {
 	Name         string
 	Instructions Node
 	Next         Node
+	symbol       *blockSymbol
 }
 
 func (this *Block) Traverse(vi Visitor) (Node, error) {
@@ -151,7 +152,7 @@ type Function struct {
 	Signature Node
 	Blocks    Node
 	Next      Node
-	funcInfo  *funcInfo
+	symbol    *funcSymbol
 }
 
 func (this *Function) Traverse(vi Visitor) (Node, error) {

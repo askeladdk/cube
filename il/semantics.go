@@ -7,7 +7,7 @@ import (
 	"github.com/askeladdk/cube"
 )
 
-type localInfo struct {
+type registerSymbol struct {
 	name  string
 	index int
 	dtype *cube.Type
@@ -15,29 +15,29 @@ type localInfo struct {
 	param bool
 }
 
-type blockInfo struct {
+type blockSymbol struct {
 	name  string
 	index int
 	node  Node
 }
 
-type funcInfo struct {
+type funcSymbol struct {
 	name   string
 	level  int
 	node   Node
-	locals map[string]*localInfo
-	blocks map[string]*blockInfo
-	params []*localInfo
+	locals map[string]*registerSymbol
+	blocks map[string]*blockSymbol
+	params []*registerSymbol
 	rtype  *cube.Type
 }
 
-type funcInfoStack []*funcInfo
+type funcInfoStack []*funcSymbol
 
-func (this funcInfoStack) push(s *funcInfo) funcInfoStack {
+func (this funcInfoStack) push(s *funcSymbol) funcInfoStack {
 	return append(this, s)
 }
 
-func (this funcInfoStack) pop() (funcInfoStack, *funcInfo) {
+func (this funcInfoStack) pop() (funcInfoStack, *funcSymbol) {
 	n := len(this)
 	if n > 0 {
 		return this[:n-1], this[n-1]
@@ -46,7 +46,7 @@ func (this funcInfoStack) pop() (funcInfoStack, *funcInfo) {
 	}
 }
 
-func (this funcInfoStack) peek() (*funcInfo, bool) {
+func (this funcInfoStack) peek() (*funcSymbol, bool) {
 	n := len(this)
 	if n > 0 {
 		return this[n-1], true
@@ -55,10 +55,7 @@ func (this funcInfoStack) peek() (*funcInfo, bool) {
 	}
 }
 
-type semanticAnalysis struct {
-	funcs     map[string]*funcInfo
-	funcStack funcInfoStack
-}
+type symbolTable map[string]*funcSymbol
 
 func getDataType(n Node) (*cube.Type, bool) {
 	switch m := n.(type) {
@@ -71,32 +68,35 @@ func getDataType(n Node) (*cube.Type, bool) {
 
 // First pass symbol resolution
 
-type nameResolver semanticAnalysis
+type symbolResolver struct {
+	symbolTable symbolTable
+	funcStack   funcInfoStack
+}
 
-func (this *nameResolver) Visit(n Node) (Node, error) {
+func (this *symbolResolver) Visit(n Node) (Node, error) {
 	switch m := n.(type) {
 	case *Program:
-		progInfo := &funcInfo{
+		progInfo := &funcSymbol{
 			level: 0,
 			name:  "",
 			node:  n,
 		}
-		this.funcs[progInfo.name] = progInfo
+		this.symbolTable[progInfo.name] = progInfo
 		this.funcStack = this.funcStack.push(progInfo)
 	case *Function:
-		if _, exists := this.funcs[m.Name]; exists {
+		if _, exists := this.symbolTable[m.Name]; exists {
 			return nil, errors.New(fmt.Sprintf("func '%s' exists", m.Name))
 		} else {
-			funcinfo := &funcInfo{
+			funcinfo := &funcSymbol{
 				level:  len(this.funcStack),
 				name:   m.Name,
-				locals: map[string]*localInfo{},
-				blocks: map[string]*blockInfo{},
+				locals: map[string]*registerSymbol{},
+				blocks: map[string]*blockSymbol{},
 				node:   n,
 			}
-			this.funcs[m.Name] = funcinfo
+			this.symbolTable[m.Name] = funcinfo
 			this.funcStack = this.funcStack.push(funcinfo)
-			m.funcInfo = funcinfo
+			m.symbol = funcinfo
 		}
 	case *Signature:
 		curfunc, _ := this.funcStack.peek()
@@ -107,35 +107,35 @@ func (this *nameResolver) Visit(n Node) (Node, error) {
 			return nil, errors.New(fmt.Sprintf("parameter '%s' exists", m.Name))
 		} else {
 			dtype, _ := getDataType(m.TypeName)
-			m.localInfo = &localInfo{
+			m.symbol = &registerSymbol{
 				name:  m.Name,
 				dtype: dtype,
 				index: len(curfunc.locals),
 				node:  m,
 				param: true,
 			}
-			curfunc.locals[m.Name] = m.localInfo
-			curfunc.params = append(curfunc.params, m.localInfo)
+			curfunc.locals[m.Name] = m.symbol
+			curfunc.params = append(curfunc.params, m.symbol)
 		}
 	case *Def:
 		curfunc, _ := this.funcStack.peek()
 		if locinfo, exists := curfunc.locals[m.Name]; exists {
-			m.localInfo = locinfo
+			m.symbol = locinfo
 		} else {
 			dtype, _ := getDataType(m.TypeName)
-			m.localInfo = &localInfo{
+			m.symbol = &registerSymbol{
 				name:  m.Name,
 				dtype: dtype,
 				index: len(curfunc.locals),
 				node:  m,
 				param: false,
 			}
-			curfunc.locals[m.Name] = m.localInfo
+			curfunc.locals[m.Name] = m.symbol
 		}
 	case *Use:
 		curfunc, _ := this.funcStack.peek()
 		if localinfo, exists := curfunc.locals[m.Name]; exists {
-			m.localInfo = localinfo
+			m.symbol = localinfo
 		} else {
 			return nil, errors.New(fmt.Sprintf("register '%s' does not exist", m.Name))
 		}
@@ -144,7 +144,7 @@ func (this *nameResolver) Visit(n Node) (Node, error) {
 		if _, exists := curfunc.blocks[m.Name]; exists {
 			return nil, errors.New(fmt.Sprintf("block '%s' exists", m.Name))
 		} else {
-			curfunc.blocks[m.Name] = &blockInfo{
+			curfunc.blocks[m.Name] = &blockSymbol{
 				name:  m.Name,
 				index: len(curfunc.blocks),
 				node:  m,
@@ -154,7 +154,7 @@ func (this *nameResolver) Visit(n Node) (Node, error) {
 	return n, nil
 }
 
-func (this *nameResolver) PostVisit(n Node) (Node, error) {
+func (this *symbolResolver) PostVisit(n Node) (Node, error) {
 	switch n.(type) {
 	case *Program:
 		this.funcStack, _ = this.funcStack.pop()
@@ -166,16 +166,16 @@ func (this *nameResolver) PostVisit(n Node) (Node, error) {
 
 // Second pass symbol resolution
 
-type labelUseResolver semanticAnalysis
+type symbolBacklinkResolver symbolResolver
 
-func (this *labelUseResolver) Visit(n Node) (Node, error) {
+func (this *symbolBacklinkResolver) Visit(n Node) (Node, error) {
 	switch m := n.(type) {
 	case *Function:
-		this.funcStack = this.funcStack.push(m.funcInfo)
+		this.funcStack = this.funcStack.push(m.symbol)
 	case *LabelUse:
 		curfunc, _ := this.funcStack.peek()
 		if blockInfo, exists := curfunc.blocks[m.Name]; exists {
-			m.blockInfo = blockInfo
+			m.symbol = blockInfo
 		} else {
 			return nil, errors.New(fmt.Sprintf("block '%s' does not exist", m.Name))
 		}
@@ -183,7 +183,7 @@ func (this *labelUseResolver) Visit(n Node) (Node, error) {
 	return n, nil
 }
 
-func (this *labelUseResolver) PostVisit(n Node) (Node, error) {
+func (this *symbolBacklinkResolver) PostVisit(n Node) (Node, error) {
 	switch n.(type) {
 	case *Function:
 		this.funcStack, _ = this.funcStack.pop()
@@ -193,14 +193,16 @@ func (this *labelUseResolver) PostVisit(n Node) (Node, error) {
 
 // Type checker
 
-type typeChecker semanticAnalysis
+type typeChecker struct {
+	symbolTable symbolTable
+}
 
 func getTypeOfNode(n Node) (*cube.Type, error) {
 	switch m := n.(type) {
 	case *Integer:
 		return cube.TypeInt64, nil
 	case *Use:
-		return m.localInfo.dtype, nil
+		return m.symbol.dtype, nil
 	default:
 		return nil, errors.New("not a typed node")
 	}
@@ -221,10 +223,10 @@ func (this *typeChecker) Visit(n Node) (Node, error) {
 			return nil, err
 		} else if def, ok := m.Dst.(*Def); !ok {
 			return nil, errors.New("invalid ast!")
-		} else if def.localInfo.dtype != cube.TypeAuto {
+		} else if def.symbol.dtype != cube.TypeAuto {
 			return nil, errors.New("type error!")
 		} else {
-			def.localInfo.dtype = srcType
+			def.symbol.dtype = srcType
 		}
 	case *Instruction:
 		if use, ok := m.Dst.(*Use); !ok {
@@ -233,7 +235,7 @@ func (this *typeChecker) Visit(n Node) (Node, error) {
 			return nil, err
 		} else if srcBType, err := getTypeOfNode(m.SrcB); err != nil {
 			return nil, err
-		} else if srcAType != srcBType || use.localInfo.dtype != srcAType {
+		} else if srcAType != srcBType || use.symbol.dtype != srcAType {
 			return nil, errors.New("source operand types do not match")
 		} else {
 			m.Opcode, _ = tokenTypeToOpcodeType_i64[m.OpcodeToken]
