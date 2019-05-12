@@ -36,8 +36,8 @@ func TestSemanticAnalysis_NameResolve1(t *testing.T) {
 func TestSemanticAnalysis_TypeCheck(t *testing.T) {
 	source := `
 	func inc(a i64) i64 {
+		var b i64
 		entry:
-			set b, 0
 			add b, a, 1
 			ret b
 	}`

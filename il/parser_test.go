@@ -67,6 +67,7 @@ func TestParseFuncZero(t *testing.T) {
 func TestParseBlockDoubleFunc(t *testing.T) {
 	source := `
     func double(a i64) i64 {
+		var b i64
         entry:
             add b, a, a
             ret b
@@ -77,6 +78,8 @@ func TestParseBlockDoubleFunc(t *testing.T) {
 		"Signature<>",
 		"Parameter<a>",
 		"TypeName<int64>",
+		"TypeName<int64>",
+		"Local<b>",
 		"TypeName<int64>",
 		"Block<entry>",
 		"Instruction<19>",

@@ -27,6 +27,7 @@ const (
 	ADD
 	SUB
 	MUL
+	VAR
 )
 
 type Token struct {

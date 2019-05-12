@@ -87,6 +87,7 @@ func TestScanEverything(t *testing.T) {
     ; comment ⌘
     0 --0x1337 0b110011
     func _你好(i32) {
+		var
         hëlló(wÖrld i32):
             日本語 := add wÖrld, i64 42
             ret 日本語

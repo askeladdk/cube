@@ -77,14 +77,6 @@ func (this *Parser) integer() (*Integer, error) {
 	}
 }
 
-func (this *Parser) def() (*Def, error) {
-	name := this.peek.Value
-	return &Def{
-		Name:     name,
-		TypeName: &TypeName{cube.TypeAuto},
-	}, this.advance()
-}
-
 func (this *Parser) use() (*Use, error) {
 	name := this.peek.Value
 	return &Use{Name: name}, this.advance()
@@ -117,7 +109,7 @@ func (this *Parser) ret() (*Return, error) {
 }
 
 func (this *Parser) set() (*Set, error) {
-	if dst, err := this.def(); err != nil {
+	if dst, err := this.use(); err != nil {
 		return nil, err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return nil, err
@@ -283,6 +275,26 @@ func (this *Parser) signature() (*Signature, error) {
 	}
 }
 
+func (this *Parser) locals() (*Local, error) {
+	if ok, err := this.accept(VAR); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, nil
+	} else if name, err := this.expect(IDENT); err != nil {
+		return nil, err
+	} else if typename, err := this.typename(); err != nil {
+		return nil, err
+	} else if next, err := this.locals(); err != nil {
+		return nil, err
+	} else {
+		return &Local{
+			Name:     name.Value,
+			TypeName: typename,
+			Next:     next,
+		}, nil
+	}
+}
+
 func (this *Parser) block(name string) (*Block, error) {
 	if _, err := this.expect(COLON); err != nil {
 		return nil, err
@@ -315,22 +327,16 @@ func (this *Parser) blocks() (*Block, error) {
 	}
 }
 
-func (this *Parser) funcbody() (*Block, error) {
-	if _, err := this.expect(CURLY_L); err != nil {
-		return nil, err
-	} else if block, err := this.blocks(); err != nil {
-		return nil, err
-	} else {
-		return block, nil
-	}
-}
-
 func (this *Parser) function() (*Function, error) {
 	if name, err := this.expect(IDENT); err != nil {
 		return nil, err
 	} else if signature, err := this.signature(); err != nil {
 		return nil, err
-	} else if blocks, err := this.funcbody(); err != nil {
+	} else if _, err := this.expect(CURLY_L); err != nil {
+		return nil, err
+	} else if locals, err := this.locals(); err != nil {
+		return nil, err
+	} else if blocks, err := this.blocks(); err != nil {
 		return nil, err
 	} else if next, err := this.definitions(); err != nil {
 		return nil, err
@@ -338,6 +344,7 @@ func (this *Parser) function() (*Function, error) {
 		return &Function{
 			Name:      name.Value,
 			Signature: signature,
+			Locals:    locals,
 			Blocks:    blocks,
 			Next:      next,
 		}, nil

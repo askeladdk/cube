@@ -9,6 +9,5 @@ func (this *Type) String() string {
 }
 
 var (
-	TypeAuto  = &Type{"auto"}
 	TypeInt64 = &Type{"int64"}
 )

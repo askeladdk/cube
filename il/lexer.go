@@ -173,6 +173,8 @@ func (this *Lexer) identifierType() TokenType {
 				return SET
 			}
 		}
+	case 'v':
+		return this.matchKeyword(1, "ar", VAR)
 	}
 
 	return IDENT

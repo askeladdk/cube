@@ -5,6 +5,7 @@ import "testing"
 func TestParseProgram(t *testing.T) {
 	source := `
 	func pow(b i64, e i64) i64 {
+		var r i64
         entry:
 			set r, 1
 			goto loop
@@ -28,10 +29,11 @@ func TestParseProgram(t *testing.T) {
 		"Parameter<e>",
 		"TypeName<int64>",
 		"TypeName<int64>",
+		"Local<r>",
+		"TypeName<int64>",
 		"Block<entry>",
 		"Set<>",
-		"Def<r>",
-		"TypeName<auto>",
+		"Use<r>",
 		"Integer<1>",
 		"Branch<>",
 		"LabelUse<loop>",

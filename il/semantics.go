@@ -8,7 +8,7 @@ import (
 	"github.com/askeladdk/cube"
 )
 
-type registerSymbol struct {
+type localSymbol struct {
 	name  string
 	index int
 	dtype *cube.Type
@@ -23,9 +23,9 @@ type blockSymbol struct {
 type funcSymbol struct {
 	name   string
 	level  int
-	locals map[string]*registerSymbol
+	locals map[string]*localSymbol
 	blocks map[string]*blockSymbol
-	params []*registerSymbol
+	params []*localSymbol
 	rtype  *cube.Type
 }
 
@@ -100,7 +100,7 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 			funcinfo := &funcSymbol{
 				level:  len(this.funcStack),
 				name:   m.Name,
-				locals: map[string]*registerSymbol{},
+				locals: map[string]*localSymbol{},
 				blocks: map[string]*blockSymbol{},
 			}
 			this.symbolTable[m.Name] = funcinfo
@@ -117,7 +117,7 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 			return nil, errors.New(fmt.Sprintf("parameter '%s' exists", m.Name))
 		} else {
 			dtype, _ := getDataType(m.TypeName)
-			m.symbol = &registerSymbol{
+			m.symbol = &localSymbol{
 				name:  m.Name,
 				dtype: dtype,
 				index: len(curfunc.locals),
@@ -126,26 +126,26 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 			curfunc.locals[m.Name] = m.symbol
 			curfunc.params = append(curfunc.params, m.symbol)
 		}
-	case *Def:
+	case *Local:
 		curfunc, _ := this.funcStack.peek()
-		if locinfo, exists := curfunc.locals[m.Name]; exists {
-			m.symbol = locinfo
-		} else {
+		if _, exists := curfunc.locals[m.Name]; !exists {
 			dtype, _ := getDataType(m.TypeName)
-			m.symbol = &registerSymbol{
+			m.symbol = &localSymbol{
 				name:  m.Name,
 				dtype: dtype,
 				index: len(curfunc.locals),
 				param: false,
 			}
 			curfunc.locals[m.Name] = m.symbol
+		} else {
+			return nil, errors.New(fmt.Sprintf("local '%s' exists", m.Name))
 		}
 	case *Use:
 		curfunc, _ := this.funcStack.peek()
 		if localinfo, exists := curfunc.locals[m.Name]; exists {
 			m.symbol = localinfo
 		} else {
-			return nil, errors.New(fmt.Sprintf("register '%s' does not exist", m.Name))
+			return nil, errors.New(fmt.Sprintf("local '%s' does not exist", m.Name))
 		}
 	case *Block:
 		curfunc, _ := this.funcStack.peek()
@@ -225,16 +225,6 @@ var tokenTypeToOpcodeType_i64 = map[TokenType]*cube.OpcodeType{
 
 func (this *typeChecker) Visit(n Node) (Node, error) {
 	switch m := n.(type) {
-	case *Set:
-		if srcType, err := getTypeOfNode(m.Src); err != nil {
-			return nil, err
-		} else if def, ok := m.Dst.(*Def); !ok {
-			return nil, errors.New("invalid ast!")
-		} else if def.symbol.dtype != cube.TypeAuto {
-			return nil, errors.New("type error!")
-		} else {
-			def.symbol.dtype = srcType
-		}
 	case *Instruction:
 		if use, ok := m.Dst.(*Use); !ok {
 			return nil, errors.New("invalid ast!")
@@ -242,8 +232,10 @@ func (this *typeChecker) Visit(n Node) (Node, error) {
 			return nil, err
 		} else if srcBType, err := getTypeOfNode(m.SrcB); err != nil {
 			return nil, err
-		} else if srcAType != srcBType || use.symbol.dtype != srcAType {
+		} else if srcAType != srcBType {
 			return nil, errors.New("source operand types do not match")
+		} else if srcAType != use.symbol.dtype {
+			return nil, errors.New("destination operand type does not match")
 		} else {
 			m.Opcode, _ = tokenTypeToOpcodeType_i64[m.OpcodeToken]
 		}

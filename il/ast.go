@@ -35,28 +35,32 @@ func (this *Integer) String() string {
 	return fmt.Sprintf("Integer<%v>", this.Value)
 }
 
-type Def struct {
+type Local struct {
 	Name     string
 	TypeName Node
-	symbol   *registerSymbol
+	Next     Node
+	symbol   *localSymbol
 }
 
-func (this *Def) Traverse(vi Visitor) (Node, error) {
+func (this *Local) Traverse(vi Visitor) (Node, error) {
 	if typename, err := vi.Visit(this.TypeName); err != nil {
+		return nil, err
+	} else if next, err := vi.Visit(this.Next); err != nil {
 		return nil, err
 	} else {
 		this.TypeName = typename
+		this.Next = next
 		return this, nil
 	}
 }
 
-func (this *Def) String() string {
-	return fmt.Sprintf("Def<%s>", this.Name)
+func (this *Local) String() string {
+	return fmt.Sprintf("Local<%s>", this.Name)
 }
 
 type Use struct {
 	Name   string
-	symbol *registerSymbol
+	symbol *localSymbol
 }
 
 func (this *Use) Traverse(vi Visitor) (Node, error) {
@@ -84,7 +88,7 @@ type Parameter struct {
 	Name     string
 	TypeName Node
 	Next     Node
-	symbol   *registerSymbol
+	symbol   *localSymbol
 }
 
 func (this *Parameter) Traverse(vi Visitor) (Node, error) {
@@ -150,6 +154,7 @@ func (this *Signature) String() string {
 type Function struct {
 	Name      string
 	Signature Node
+	Locals    Node
 	Blocks    Node
 	Next      Node
 	symbol    *funcSymbol
@@ -158,12 +163,15 @@ type Function struct {
 func (this *Function) Traverse(vi Visitor) (Node, error) {
 	if signature, err := vi.Visit(this.Signature); err != nil {
 		return nil, err
+	} else if locals, err := vi.Visit(this.Locals); err != nil {
+		return nil, err
 	} else if blocks, err := vi.Visit(this.Blocks); err != nil {
 		return nil, err
 	} else if next, err := vi.Visit(this.Next); err != nil {
 		return nil, err
 	} else {
 		this.Signature = signature
+		this.Locals = locals
 		this.Blocks = blocks
 		this.Next = next
 		return this, nil
