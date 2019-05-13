@@ -48,7 +48,6 @@ func TestScanKeywords(t *testing.T) {
 		ADD,
 		MUL,
 		VAR,
-		EOF,
 	}
 
 	for _, expected := range tokens {
@@ -90,23 +89,28 @@ func TestScanIllegal(t *testing.T) {
 	}
 }
 
-func TestScanEverything(t *testing.T) {
-	source := `
-    ; comment ⌘
-    0 --0x1337 0b110011
-    func _你好(i32) {
-		var
-        hëlló(wÖrld i32):
-            日本語 := add wÖrld, i64 42
-            ret 日本語
-    }`
+func TestScanMisc(t *testing.T) {
+	lexer := NewLexer("<source>", `
+	; comment ⌘
+	() {} :, - := _ ?
+	`)
 
-	lexer := NewLexer("<source>", source)
-	for token := lexer.Scan(); token.Type != EOF; token = lexer.Scan() {
-		switch token.Type {
-		case ILLEGAL:
-			t.Fatalf("illegal character: %s", token.Value)
-			break
+	tokens := []TokenType{
+		PAREN_L,
+		PAREN_R,
+		CURLY_L,
+		CURLY_R,
+		COLON,
+		COMMA,
+		MINUS,
+		ASSIGN,
+		IDENT,
+		ILLEGAL,
+	}
+
+	for _, expected := range tokens {
+		if token := lexer.Scan(); token.Type != expected {
+			t.Fatal(token)
 		}
 	}
 }
