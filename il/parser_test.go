@@ -39,7 +39,7 @@ func validateTrace(n Node, test []string) error {
 
 func TestParseFuncZero(t *testing.T) {
 	source := `
-    func zero() i64 {
+    func zero() int64 {
         entry:
             ret 0
     }`
@@ -66,8 +66,8 @@ func TestParseFuncZero(t *testing.T) {
 
 func TestParseBlockDoubleFunc(t *testing.T) {
 	source := `
-    func double(a i64) i64 {
-		var b i64
+    func double(a int64) int64 {
+		var b int64
         entry:
             add b, a, a
             ret b

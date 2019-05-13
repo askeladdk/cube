@@ -29,7 +29,7 @@ func TestScanKeywords(t *testing.T) {
 	lexer := NewLexer("<source>", `
 		goto
 		func
-		i64
+		int64
 		ifz
 		set
 		sub
@@ -41,7 +41,7 @@ func TestScanKeywords(t *testing.T) {
 	tokens := []TokenType{
 		GOTO,
 		FUNC,
-		I64,
+		INT64,
 		IFZ,
 		SET,
 		SUB,

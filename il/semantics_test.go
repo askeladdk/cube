@@ -8,7 +8,7 @@ import (
 
 func TestSemanticAnalysis_NameResolve1(t *testing.T) {
 	source := `
-	func identity(a i64) i64 {
+	func identity(a int64) int64 {
 		entry:
 			goto done
 		done:
@@ -35,8 +35,8 @@ func TestSemanticAnalysis_NameResolve1(t *testing.T) {
 
 func TestSemanticAnalysis_TypeCheck(t *testing.T) {
 	source := `
-	func inc(a i64) i64 {
-		var b i64
+	func inc(a int64) int64 {
+		var b int64
 		entry:
 			add b, a, 1
 			ret b

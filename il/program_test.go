@@ -4,8 +4,8 @@ import "testing"
 
 func TestParseProgram(t *testing.T) {
 	source := `
-	func pow(b i64, e i64) i64 {
-		var r i64
+	func pow(b int64, e int64) int64 {
+		var r int64
         entry:
 			set r, 1
 			goto loop

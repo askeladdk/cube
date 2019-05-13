@@ -17,7 +17,7 @@ const (
 	MINUS
 	ASSIGN
 
-	I64
+	INT64
 	IDENT
 	FUNC
 	SET
