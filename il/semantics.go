@@ -8,27 +8,6 @@ import (
 	"github.com/askeladdk/cube"
 )
 
-type localSymbol struct {
-	name  string
-	index int
-	dtype *cube.Type
-	param bool
-}
-
-type blockSymbol struct {
-	name  string
-	index int
-}
-
-type funcSymbol struct {
-	name   string
-	level  int
-	locals map[string]*localSymbol
-	blocks map[string]*blockSymbol
-	params []*localSymbol
-	rtype  *cube.Type
-}
-
 type funcSymbolStack []*funcSymbol
 
 func (this funcSymbolStack) push(s *funcSymbol) funcSymbolStack {
@@ -53,8 +32,6 @@ func (this funcSymbolStack) peek() (*funcSymbol, bool) {
 	}
 }
 
-type symbolTable map[string]*funcSymbol
-
 func getDataType(n Node) (*cube.Type, bool) {
 	switch m := n.(type) {
 	case *TypeName:
@@ -71,6 +48,8 @@ type unresolvedLabels map[string][]*LabelUse
 type symbolResolver struct {
 	symbolTable      symbolTable
 	funcStack        funcSymbolStack
+	locals           map[string]*localSymbol
+	blocks           map[string]*blockSymbol
 	unresolvedLabels map[string][]*LabelUse
 }
 
@@ -98,77 +77,78 @@ func (this *symbolResolver) Visit(n Node) (Node, error) {
 			return nil, errors.New(fmt.Sprintf("func '%s' exists", m.Name))
 		} else {
 			funcinfo := &funcSymbol{
-				level:  len(this.funcStack),
-				name:   m.Name,
-				locals: map[string]*localSymbol{},
-				blocks: map[string]*blockSymbol{},
+				level: len(this.funcStack),
+				name:  m.Name,
 			}
 			this.symbolTable[m.Name] = funcinfo
 			this.funcStack = this.funcStack.push(funcinfo)
 			this.unresolvedLabels = unresolvedLabels{}
+			this.locals = map[string]*localSymbol{}
+			this.blocks = map[string]*blockSymbol{}
 			m.symbol = funcinfo
 		}
 	case *Signature:
 		curfunc, _ := this.funcStack.peek()
 		curfunc.rtype, _ = getDataType(m.Returns)
 	case *Parameter:
-		curfunc, _ := this.funcStack.peek()
-		if _, exists := curfunc.locals[m.Name]; exists {
-			return nil, errors.New(fmt.Sprintf("parameter '%s' exists", m.Name))
-		} else {
+		if _, exists := this.locals[m.Name]; !exists {
 			dtype, _ := getDataType(m.TypeName)
 			m.symbol = &localSymbol{
-				name:  m.Name,
-				dtype: dtype,
-				index: len(curfunc.locals),
-				param: true,
+				parent: len(this.locals),
+				index:  len(this.locals),
+				dtype:  dtype,
+				param:  true,
 			}
-			curfunc.locals[m.Name] = m.symbol
-			curfunc.params = append(curfunc.params, m.symbol)
+			this.locals[m.Name] = m.symbol
+			curfunc, _ := this.funcStack.peek()
+			curfunc.locals = append(curfunc.locals, m.symbol)
+		} else {
+			return nil, errors.New(fmt.Sprintf("parameter '%s' exists", m.Name))
 		}
 	case *Local:
-		curfunc, _ := this.funcStack.peek()
-		if _, exists := curfunc.locals[m.Name]; !exists {
+		if _, exists := this.locals[m.Name]; !exists {
 			dtype, _ := getDataType(m.TypeName)
 			m.symbol = &localSymbol{
-				name:  m.Name,
-				dtype: dtype,
-				index: len(curfunc.locals),
-				param: false,
+				parent: len(this.locals),
+				index:  len(this.locals),
+				dtype:  dtype,
+				param:  false,
 			}
-			curfunc.locals[m.Name] = m.symbol
+			this.locals[m.Name] = m.symbol
+			curfunc, _ := this.funcStack.peek()
+			curfunc.locals = append(curfunc.locals, m.symbol)
 		} else {
 			return nil, errors.New(fmt.Sprintf("local '%s' exists", m.Name))
 		}
 	case *Use:
-		curfunc, _ := this.funcStack.peek()
-		if localinfo, exists := curfunc.locals[m.Name]; exists {
+		if localinfo, exists := this.locals[m.Name]; exists {
 			m.symbol = localinfo
 		} else {
 			return nil, errors.New(fmt.Sprintf("local '%s' does not exist", m.Name))
 		}
 	case *Block:
-		curfunc, _ := this.funcStack.peek()
-		if _, exists := curfunc.blocks[m.Name]; exists {
+		if _, exists := this.blocks[m.Name]; exists {
 			return nil, errors.New(fmt.Sprintf("block '%s' exists", m.Name))
 		} else {
-			symbol := &blockSymbol{
+			m.symbol = &blockSymbol{
 				name:  m.Name,
-				index: len(curfunc.blocks),
+				index: len(this.blocks),
 			}
 
-			curfunc.blocks[m.Name] = symbol
+			this.blocks[m.Name] = m.symbol
+
+			curfunc, _ := this.funcStack.peek()
+			curfunc.blocks = append(curfunc.blocks, m.symbol)
 
 			if unresolved, ok := this.unresolvedLabels[m.Name]; ok {
 				for _, node := range unresolved {
-					node.symbol = symbol
+					node.symbol = m.symbol
 				}
 				delete(this.unresolvedLabels, m.Name)
 			}
 		}
 	case *LabelUse:
-		curfunc, _ := this.funcStack.peek()
-		if symbol, exists := curfunc.blocks[m.Name]; exists {
+		if symbol, exists := this.blocks[m.Name]; exists {
 			m.symbol = symbol
 		} else {
 			unresolved := this.unresolvedLabels[m.Name]

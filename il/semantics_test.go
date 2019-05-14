@@ -25,9 +25,9 @@ func TestSemanticAnalysis_NameResolve1(t *testing.T) {
 			t.Fatalf("function not found")
 		} else if finfo.level != 1 {
 			t.Fatalf("level != 1")
-		} else if aloc, ok := finfo.locals["a"]; !ok {
-			t.Fatalf("local a not found")
-		} else if aloc.dtype != cube.TypeInt64 {
+		} else if len(finfo.locals) == 0 {
+			t.Fatalf("no locals")
+		} else if finfo.locals[0].dtype != cube.TypeInt64 {
 			t.Fatalf("a type != int64")
 		}
 	}
