@@ -178,15 +178,23 @@ func (this *parseContext) immediate() (operand, error) {
 	}
 }
 
+func (this *parseContext) local() (operand, error) {
+	if ident, err := this.ident(); err != nil {
+		return 0, err
+	} else if local, err := this.lookupLocal(ident); err != nil {
+		return 0, err
+	} else {
+		return local, nil
+	}
+}
+
 func (this *parseContext) instruction_r(opcode *OpcodeType) error {
-	if r0, err := this.ident(); err != nil {
-		return err
-	} else if r0idx, err := this.lookupLocal(r0); err != nil {
+	if op0, err := this.local(); err != nil {
 		return err
 	} else {
 		insr := instruction{
 			opcode:   opcode,
-			operands: [3]operand{r0idx},
+			operands: [3]operand{op0},
 		}
 		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
 		return nil
@@ -207,21 +215,15 @@ func (this *parseContext) instruction_i(opcode *OpcodeType) error {
 }
 
 func (this *parseContext) instruction_rrr(opcode *OpcodeType) error {
-	if ident0, err := this.ident(); err != nil {
-		return err
-	} else if op0, err := this.lookupLocal(ident0); err != nil {
+	if op0, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return err
-	} else if ident1, err := this.ident(); err != nil {
-		return err
-	} else if op1, err := this.lookupLocal(ident1); err != nil {
+	} else if op1, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return err
-	} else if ident2, err := this.ident(); err != nil {
-		return err
-	} else if op2, err := this.lookupLocal(ident2); err != nil {
+	} else if op2, err := this.local(); err != nil {
 		return err
 	} else {
 		insr := instruction{
@@ -234,15 +236,11 @@ func (this *parseContext) instruction_rrr(opcode *OpcodeType) error {
 }
 
 func (this *parseContext) instruction_rri(opcode *OpcodeType) error {
-	if ident0, err := this.ident(); err != nil {
-		return err
-	} else if op0, err := this.lookupLocal(ident0); err != nil {
+	if op0, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return err
-	} else if ident1, err := this.ident(); err != nil {
-		return err
-	} else if op1, err := this.lookupLocal(ident1); err != nil {
+	} else if op1, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
 		return err
