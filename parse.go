@@ -6,17 +6,24 @@ import (
 	"strconv"
 )
 
+type unresolvedLabel struct {
+	block   int
+	insr    int
+	operand int
+}
+
 type parseContext struct {
 	lexer   *Lexer
 	program *program
 
 	peek Token
 
-	localdefs   map[string]int
-	blockdefs   map[string]int
-	funcdefs    map[string]int
-	activeFunc  function
-	activeBlock block
+	localdefs        map[string]int
+	blockdefs        map[string]int
+	funcdefs         map[string]int
+	activeFunc       function
+	activeBlock      block
+	unresolvedLabels map[string][]unresolvedLabel
 }
 
 func (this *parseContext) registerLocal(name string, dtype *Type, param bool) error {

@@ -98,7 +98,7 @@ func TestScanIllegal(t *testing.T) {
 func TestScanMisc(t *testing.T) {
 	lexer := NewLexer("<source>", `
 	; comment ⌘
-	() {} :, - := _ ?
+	() {} :, _ ?
 	`)
 
 	tokens := []TokenType{
@@ -108,8 +108,6 @@ func TestScanMisc(t *testing.T) {
 		CURLY_R,
 		COLON,
 		COMMA,
-		MINUS,
-		ASSIGN,
 		IDENT,
 		ILLEGAL,
 	}

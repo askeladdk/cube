@@ -14,8 +14,6 @@ const (
 	CURLY_R
 	COMMA
 	COLON
-	MINUS
-	ASSIGN
 
 	U64
 	IDENT

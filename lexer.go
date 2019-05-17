@@ -190,14 +190,10 @@ func (this *Lexer) Scan() Token {
 	case ',':
 		return this.token(COMMA)
 	case ':':
-		if this.match('=') {
-			return this.token(ASSIGN)
-		} else {
-			return this.token(COLON)
-		}
+		return this.token(COLON)
 	case '-':
 		if !isdecdigit(this.peek) {
-			return this.token(MINUS)
+			return this.token(ILLEGAL)
 		}
 		this.advance()
 		fallthrough
