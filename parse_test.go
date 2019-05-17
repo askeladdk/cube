@@ -50,3 +50,29 @@ func TestParse_2(t *testing.T) {
 	}
 	t.Fail()
 }
+
+func TestParse_3(t *testing.T) {
+	source := `
+	func hang(a u64) u64 {
+		loop1:
+			jmp loop2
+		loop2:
+			jmp loop3
+		loop3:
+			jmp loop4
+		loop4:
+			jnz a, loop1, loop4
+	}`
+
+	lexer := NewLexer("test.cubeasm", source)
+	ctx := parseContext{
+		lexer:    lexer,
+		program:  &program{},
+		funcdefs: map[string]int{},
+	}
+
+	if err := ctx.parse(); err != nil {
+		t.Fatal(err)
+	}
+	t.Fail()
+}

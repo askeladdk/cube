@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type unresolvedLabel struct {
@@ -188,6 +189,30 @@ func (this *parseContext) local() (operand, error) {
 	}
 }
 
+func (this *parseContext) label(opnum int) (operand, error) {
+	if name, err := this.ident(); err != nil {
+		return 0, err
+	} else if label, ok := this.blockdefs[name]; !ok {
+		unresolved, _ := this.unresolvedLabels[name]
+		this.unresolvedLabels[name] = append(unresolved, unresolvedLabel{
+			block:   this.activeBlock.index,
+			insr:    len(this.activeBlock.insrs),
+			operand: opnum,
+		})
+		return ^operand(0), nil
+	} else {
+		return operand(label), nil
+	}
+}
+
+func (this *parseContext) resolveLabel(name string, blockid int) {
+	unresolved, _ := this.unresolvedLabels[name]
+	for _, u := range unresolved {
+		this.activeFunc.blocks[u.block].insrs[u.insr].operands[u.operand] = operand(blockid)
+	}
+	delete(this.unresolvedLabels, name)
+}
+
 func (this *parseContext) instruction_r(opcode *OpcodeType) error {
 	if op0, err := this.local(); err != nil {
 		return err
@@ -208,6 +233,19 @@ func (this *parseContext) instruction_i(opcode *OpcodeType) error {
 		insr := instruction{
 			opcode:   opcode,
 			operands: [3]operand{imm0},
+		}
+		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
+		return nil
+	}
+}
+
+func (this *parseContext) instruction_l(opcode *OpcodeType) error {
+	if op0, err := this.label(0); err != nil {
+		return err
+	} else {
+		insr := instruction{
+			opcode:   opcode,
+			operands: [3]operand{op0},
 		}
 		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
 		return nil
@@ -256,6 +294,27 @@ func (this *parseContext) instruction_rri(opcode *OpcodeType) error {
 	}
 }
 
+func (this *parseContext) instruction_rll(opcode *OpcodeType) error {
+	if op0, err := this.local(); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op1, err := this.label(1); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op2, err := this.label(2); err != nil {
+		return err
+	} else {
+		insr := instruction{
+			opcode:   opcode,
+			operands: [3]operand{op0, op1, op2},
+		}
+		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
+		return nil
+	}
+}
+
 func (this *parseContext) instructions() error {
 	for {
 		tokenType := this.peek.Type
@@ -272,6 +331,10 @@ func (this *parseContext) instructions() error {
 				return this.instruction_r(Opcode_RET)
 			case RETI:
 				return this.instruction_i(Opcode_RETI)
+			case JMP:
+				return this.instruction_l(Opcode_JMP)
+			case JNZ:
+				return this.instruction_rll(Opcode_JNZ)
 			default:
 				return this.unexpected()
 			}
@@ -285,6 +348,7 @@ func (this *parseContext) instructions() error {
 
 func (this *parseContext) blocks() error {
 	this.blockdefs = map[string]int{}
+	this.unresolvedLabels = map[string][]unresolvedLabel{}
 
 	for {
 		if this.peek.Type == CURLY_R {
@@ -301,11 +365,13 @@ func (this *parseContext) blocks() error {
 				index: len(this.activeFunc.blocks),
 			}
 			this.blockdefs[name] = this.activeBlock.index
+
+			this.resolveLabel(name, this.activeBlock.index)
+
 			if err := this.instructions(); err != nil {
 				return err
 			} else {
 				this.activeFunc.blocks = append(this.activeFunc.blocks, this.activeBlock)
-				return nil
 			}
 		}
 	}
@@ -333,6 +399,17 @@ func (this *parseContext) function() error {
 		return err
 	} else if _, err := this.expect(CURLY_R); err != nil {
 		return err
+	} else if len(this.unresolvedLabels) > 0 {
+		var labels []string
+		for k, _ := range this.unresolvedLabels {
+			labels = append(labels, k)
+		}
+		if len(labels) > 1 {
+			joinedLabels := strings.Join(labels, ", ")
+			return this.error(fmt.Sprintf("unresolved reference to labels %s", joinedLabels))
+		} else {
+			return this.error(fmt.Sprintf("unresolved reference to label %s", labels[0]))
+		}
 	} else {
 		index := len(this.program.funcs)
 		this.activeFunc.index = index
