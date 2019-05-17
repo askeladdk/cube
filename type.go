@@ -9,5 +9,5 @@ func (this *Type) String() string {
 }
 
 var (
-	TypeInt64 = &Type{"int64"}
+	TypeUntyped64 = &Type{"u64"}
 )

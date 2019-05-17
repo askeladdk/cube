@@ -1,4 +1,4 @@
-package il
+package cube
 
 type TokenType int
 
@@ -17,14 +17,16 @@ const (
 	MINUS
 	ASSIGN
 
-	INT64
+	U64
 	IDENT
 	FUNC
 	SET
 	RET
-	GOTO
-	IFZ
+	REI
+	JMP
+	JNZ
 	ADD
+	ADI
 	SUB
 	MUL
 	VAR

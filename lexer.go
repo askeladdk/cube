@@ -1,4 +1,4 @@
-package il
+package cube
 
 import (
 	"strings"
@@ -131,14 +131,16 @@ var keywords = []struct {
 }{
 	// must be in alphabetical order
 	{"add", ADD},
+	{"adi", ADI},
 	{"func", FUNC},
-	{"goto", GOTO},
-	{"ifz", IFZ},
-	{"int64", INT64},
+	{"jmp", JMP},
+	{"jnz", JNZ},
 	{"mul", MUL},
+	{"rei", REI},
 	{"ret", RET},
 	{"set", SET},
 	{"sub", SUB},
+	{"u64", U64},
 	{"var", VAR},
 }
 

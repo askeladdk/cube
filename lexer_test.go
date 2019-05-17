@@ -1,4 +1,4 @@
-package il
+package cube
 
 import "testing"
 
@@ -27,27 +27,31 @@ func TestScanNumbers(t *testing.T) {
 
 func TestScanKeywords(t *testing.T) {
 	lexer := NewLexer("<source>", `
-		goto
+		jmp
 		func
-		int64
-		ifz
+		u64
+		jnz
 		set
 		sub
 		add
 		mul
 		var
+		ret
+		rei
 	`)
 
 	tokens := []TokenType{
-		GOTO,
+		JMP,
 		FUNC,
-		INT64,
-		IFZ,
+		U64,
+		JNZ,
 		SET,
 		SUB,
 		ADD,
 		MUL,
 		VAR,
+		RET,
+		REI,
 	}
 
 	for _, expected := range tokens {

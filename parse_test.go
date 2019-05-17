@@ -1,15 +1,19 @@
-package il
+package cube
 
 import "testing"
 
 func TestParse2(t *testing.T) {
 	source := `
-	func a(b int64, c int64) int64 {
-		var d int64
-		var e int64
-	}
-	`
-	lexer := NewLexer("<source>", source)
+	func a(b u64, c u64) u64 {
+		var d u64
+		var e u64
+		entry:
+			add d, b, c
+			adi e, d, 0xffee
+			ret e
+	}`
+
+	lexer := NewLexer("test.cubeasm", source)
 	ctx := parseContext{
 		lexer:    lexer,
 		program:  &program{},
