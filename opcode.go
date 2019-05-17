@@ -3,10 +3,10 @@ package cube
 type OperandType int
 
 const (
-	OPNONE = iota
-	OPLABEL
-	OPLOCAL
-	OPIMMEDIATE
+	OPNIL = iota
+	OPLAB
+	OPLOC
+	OPIMM
 )
 
 type OpcodeType struct {
@@ -19,14 +19,14 @@ func (this *OpcodeType) String() string {
 }
 
 var (
-	Opcode_ADD  = &OpcodeType{"ADD", [3]OperandType{OPLOCAL, OPLOCAL, OPLOCAL}}
-	Opcode_ADDI = &OpcodeType{"ADDI", [3]OperandType{OPLOCAL, OPLOCAL, OPIMMEDIATE}}
-	Opcode_JMP  = &OpcodeType{"JMP", [3]OperandType{OPLOCAL, OPLABEL, OPNONE}}
-	Opcode_JNZ  = &OpcodeType{"JNZ", [3]OperandType{OPLOCAL, OPLABEL, OPLABEL}}
-	Opcode_MUL  = &OpcodeType{"MUL", [3]OperandType{OPLOCAL, OPLOCAL, OPLOCAL}}
-	Opcode_NOP  = &OpcodeType{"NOP", [3]OperandType{OPNONE, OPNONE, OPNONE}}
-	Opcode_RET  = &OpcodeType{"RET", [3]OperandType{OPLOCAL, OPNONE, OPNONE}}
-	Opcode_RETI = &OpcodeType{"RETI", [3]OperandType{OPIMMEDIATE, OPNONE, OPNONE}}
-	Opcode_SET  = &OpcodeType{"SET", [3]OperandType{OPLOCAL, OPLOCAL, OPLOCAL}}
-	Opcode_SUB  = &OpcodeType{"SUB", [3]OperandType{OPLOCAL, OPLOCAL, OPLOCAL}}
+	Opcode_ADD  = &OpcodeType{"add", [3]OperandType{OPLOC, OPLOC, OPLOC}}
+	Opcode_ADDI = &OpcodeType{"addi", [3]OperandType{OPLOC, OPLOC, OPIMM}}
+	Opcode_JMP  = &OpcodeType{"jmp", [3]OperandType{OPLOC, OPLAB, OPNIL}}
+	Opcode_JNZ  = &OpcodeType{"jnz", [3]OperandType{OPLOC, OPLAB, OPLAB}}
+	Opcode_MUL  = &OpcodeType{"mul", [3]OperandType{OPLOC, OPLOC, OPLOC}}
+	Opcode_NOP  = &OpcodeType{"nop", [3]OperandType{OPNIL, OPNIL, OPNIL}}
+	Opcode_RET  = &OpcodeType{"ret", [3]OperandType{OPLOC, OPNIL, OPNIL}}
+	Opcode_RETI = &OpcodeType{"reti", [3]OperandType{OPIMM, OPNIL, OPNIL}}
+	Opcode_SET  = &OpcodeType{"set", [3]OperandType{OPLOC, OPLOC, OPLOC}}
+	Opcode_SUB  = &OpcodeType{"sub", [3]OperandType{OPLOC, OPLOC, OPLOC}}
 )
