@@ -186,6 +186,19 @@ func (this *parseContext) instruction_r(opcode *OpcodeType) error {
 	}
 }
 
+func (this *parseContext) instruction_i(opcode *OpcodeType) error {
+	if imm0, err := this.immediate(); err != nil {
+		return err
+	} else {
+		insr := instruction{
+			opcode:   opcode,
+			operands: [3]operand{imm0},
+		}
+		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
+		return nil
+	}
+}
+
 func (this *parseContext) instruction_rrr(opcode *OpcodeType) error {
 	if ident0, err := this.ident(); err != nil {
 		return err
@@ -244,23 +257,22 @@ func (this *parseContext) instructions() error {
 		if err := this.advance(); err != nil {
 			return err
 		} else {
+			var err error
 			switch tokenType {
 			case ADD:
-				if err := this.instruction_rrr(Opcode_ADD); err != nil {
-					return err
-				}
-			case ADI:
-				if err := this.instruction_rri(Opcode_ADI); err != nil {
-					return err
-				}
+				err = this.instruction_rrr(Opcode_ADD)
+			case ADDI:
+				err = this.instruction_rri(Opcode_ADDI)
 			case RET:
-				if err := this.instruction_r(Opcode_RET); err != nil {
-					return err
-				} else {
-					return nil
-				}
+				return this.instruction_r(Opcode_RET)
+			case RETI:
+				return this.instruction_i(Opcode_RETI)
 			default:
 				return this.unexpected()
+			}
+
+			if err != nil {
+				return err
 			}
 		}
 	}

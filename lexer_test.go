@@ -37,7 +37,8 @@ func TestScanKeywords(t *testing.T) {
 		mul
 		var
 		ret
-		rei
+		reti
+		addi
 	`)
 
 	tokens := []TokenType{
@@ -51,7 +52,8 @@ func TestScanKeywords(t *testing.T) {
 		MUL,
 		VAR,
 		RET,
-		REI,
+		RETI,
+		ADDI,
 	}
 
 	for _, expected := range tokens {

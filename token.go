@@ -22,11 +22,11 @@ const (
 	FUNC
 	SET
 	RET
-	REI
+	RETI
 	JMP
 	JNZ
 	ADD
-	ADI
+	ADDI
 	SUB
 	MUL
 	VAR
