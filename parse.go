@@ -27,6 +27,14 @@ type parseContext struct {
 	unresolvedLabels map[string][]unresolvedLabel
 }
 
+func newParseContext(lexer *Lexer, program *program) *parseContext {
+	return &parseContext{
+		lexer:    lexer,
+		program:  program,
+		funcdefs: map[string]int{},
+	}
+}
+
 func (this *parseContext) registerLocal(name string, dtype *Type, param bool) error {
 	if _, exists := this.localdefs[name]; exists {
 		return this.error(fmt.Sprintf("local %s is redefined here", name))
@@ -213,29 +221,27 @@ func (this *parseContext) resolveLabel(name string, blockid int) {
 	delete(this.unresolvedLabels, name)
 }
 
+func (this *parseContext) emit(opcode *OpcodeType, op0, op1, op2 operand) error {
+	this.activeBlock.insrs = append(this.activeBlock.insrs, instruction{
+		opcode:   opcode,
+		operands: [3]operand{op0, op1, op2},
+	})
+	return nil
+}
+
 func (this *parseContext) instruction_r(opcode *OpcodeType) error {
 	if op0, err := this.local(); err != nil {
 		return err
 	} else {
-		insr := instruction{
-			opcode:   opcode,
-			operands: [3]operand{op0},
-		}
-		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
-		return nil
+		return this.emit(opcode, op0, 0, 0)
 	}
 }
 
 func (this *parseContext) instruction_i(opcode *OpcodeType) error {
-	if imm0, err := this.immediate(); err != nil {
+	if op0, err := this.immediate(); err != nil {
 		return err
 	} else {
-		insr := instruction{
-			opcode:   opcode,
-			operands: [3]operand{imm0},
-		}
-		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
-		return nil
+		return this.emit(opcode, op0, 0, 0)
 	}
 }
 
@@ -243,12 +249,7 @@ func (this *parseContext) instruction_l(opcode *OpcodeType) error {
 	if op0, err := this.label(0); err != nil {
 		return err
 	} else {
-		insr := instruction{
-			opcode:   opcode,
-			operands: [3]operand{op0},
-		}
-		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
-		return nil
+		return this.emit(opcode, op0, 0, 0)
 	}
 }
 
@@ -264,12 +265,7 @@ func (this *parseContext) instruction_rrr(opcode *OpcodeType) error {
 	} else if op2, err := this.local(); err != nil {
 		return err
 	} else {
-		insr := instruction{
-			opcode:   opcode,
-			operands: [3]operand{op0, op1, op2},
-		}
-		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
-		return nil
+		return this.emit(opcode, op0, op1, op2)
 	}
 }
 
@@ -285,12 +281,7 @@ func (this *parseContext) instruction_rri(opcode *OpcodeType) error {
 	} else if op2, err := this.immediate(); err != nil {
 		return err
 	} else {
-		insr := instruction{
-			opcode:   opcode,
-			operands: [3]operand{op0, op1, op2},
-		}
-		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
-		return nil
+		return this.emit(opcode, op0, op1, op2)
 	}
 }
 
@@ -306,12 +297,7 @@ func (this *parseContext) instruction_rll(opcode *OpcodeType) error {
 	} else if op2, err := this.label(2); err != nil {
 		return err
 	} else {
-		insr := instruction{
-			opcode:   opcode,
-			operands: [3]operand{op0, op1, op2},
-		}
-		this.activeBlock.insrs = append(this.activeBlock.insrs, insr)
-		return nil
+		return this.emit(opcode, op0, op1, op2)
 	}
 }
 
@@ -406,7 +392,7 @@ func (this *parseContext) function() error {
 		}
 		if len(labels) > 1 {
 			joinedLabels := strings.Join(labels, ", ")
-			return this.error(fmt.Sprintf("unresolved reference to labels %s", joinedLabels))
+			return this.error(fmt.Sprintf("unresolved references to labels %s", joinedLabels))
 		} else {
 			return this.error(fmt.Sprintf("unresolved reference to label %s", labels[0]))
 		}
@@ -447,9 +433,5 @@ func (this *parseContext) parse() error {
 }
 
 func Parse2(lexer *Lexer, program *program) error {
-	return (&parseContext{
-		lexer:    lexer,
-		program:  program,
-		funcdefs: map[string]int{},
-	}).parse()
+	return newParseContext(lexer, program).parse()
 }

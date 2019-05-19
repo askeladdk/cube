@@ -10,11 +10,7 @@ func TestParse_1(t *testing.T) {
 	}`
 
 	lexer := NewLexer("test.cubeasm", source)
-	ctx := parseContext{
-		lexer:    lexer,
-		program:  &program{},
-		funcdefs: map[string]int{},
-	}
+	ctx := newParseContext(lexer, &program{})
 
 	if err := ctx.parse(); err != nil {
 		t.Fatal(err)
@@ -39,11 +35,7 @@ func TestParse_2(t *testing.T) {
 	}`
 
 	lexer := NewLexer("test.cubeasm", source)
-	ctx := parseContext{
-		lexer:    lexer,
-		program:  &program{},
-		funcdefs: map[string]int{},
-	}
+	ctx := newParseContext(lexer, &program{})
 
 	if err := ctx.parse(); err != nil {
 		t.Fatal(err)
@@ -65,11 +57,7 @@ func TestParse_3(t *testing.T) {
 	}`
 
 	lexer := NewLexer("test.cubeasm", source)
-	ctx := parseContext{
-		lexer:    lexer,
-		program:  &program{},
-		funcdefs: map[string]int{},
-	}
+	ctx := newParseContext(lexer, &program{})
 
 	if err := ctx.parse(); err != nil {
 		t.Fatal(err)
