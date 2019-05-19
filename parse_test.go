@@ -4,63 +4,57 @@ import "testing"
 
 func TestParse_1(t *testing.T) {
 	source := `
-	func question() u64 {
-		answer:
-			reti 42
+	func plusone(a u64) u64 {
+		var b u64
+		entry:
+			addi b, a, 1
+			ret b
 	}`
 
-	lexer := NewLexer("test.cubeasm", source)
-	ctx := newParseContext(lexer, &program{})
+	err := Compile(&Config{
+		Filename: "test.cubeasm",
+		Source:   source,
+		Procedure: func(proc *Procedure) error {
+			if proc.blocks[0].Name != "entry" {
+				t.Fatalf("wrong block name")
+			} else if proc.blocks[0].jmparg != 1 {
+				t.Fatalf("wrong operand")
+			}
+			return nil
+		},
+	})
 
-	if err := ctx.parse(); err != nil {
+	if err != nil {
 		t.Fatal(err)
-	} else if ctx.program.funcs[0].blocks[0].name != "answer" {
-		t.Fatalf("wrong block name")
-	} else if ctx.program.funcs[0].blocks[0].insrs[0].opcode != Opcode_RETI {
-		t.Fatalf("wrong opcode")
-	} else if ctx.program.funcs[0].blocks[0].insrs[0].operands[0] != 42 {
-		t.Fatalf("wrong operand")
 	}
 }
 
 func TestParse_2(t *testing.T) {
 	source := `
-	func a(b u64, c u64) u64 {
-		var d u64
-		var e u64
-		entry:
-			add d, b, c
-			addi e, d, 0xffee
-			ret e
+	func cfg(z u64) u64 {
+		x: jnz z, b, c
+		b: jmp d
+		d: jmp g
+		g: jmp d
+		c: jmp e
+		e: jmp m
+		m: jmp c
 	}`
 
-	lexer := NewLexer("test.cubeasm", source)
-	ctx := newParseContext(lexer, &program{})
+	err := Compile(&Config{
+		Filename: "test.cubeasm",
+		Source:   source,
+		Procedure: func(proc *Procedure) error {
+			blks0 := proc.blocks
+			blks1 := reachable(proc.entryPoint, blks0)
+			blks2 := predecessors(blks1)
+			blks3 := topologicalSort(blks2)
+			_ = blks3
+			return nil
+		},
+	})
 
-	if err := ctx.parse(); err != nil {
+	if err != nil {
 		t.Fatal(err)
 	}
-	t.Fail()
-}
-
-func TestParse_3(t *testing.T) {
-	source := `
-	func hang(a u64) u64 {
-		loop1:
-			jmp loop2
-		loop2:
-			jmp loop3
-		loop3:
-			jmp loop4
-		loop4:
-			jnz a, loop1, loop4
-	}`
-
-	lexer := NewLexer("test.cubeasm", source)
-	ctx := newParseContext(lexer, &program{})
-
-	if err := ctx.parse(); err != nil {
-		t.Fatal(err)
-	}
-	t.Fail()
 }

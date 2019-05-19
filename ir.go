@@ -1,34 +1,34 @@
 package cube
 
-type operand uint64
-
 type instruction struct {
-	opcode   *OpcodeType
-	operands [3]operand
+	Opcode   Opcode
+	Operands [3]int
 }
 
-type block struct {
-	name  string
-	index int
-	insrs []instruction
+type basicBlock struct {
+	Name         string
+	Instructions []instruction
+
+	sccomponent  int
+	jmpcode      Opcode
+	jmparg       int
+	successors   [2]*basicBlock
+	predecessors []*basicBlock
 }
 
 type local struct {
-	name   string
-	dtype  *Type
-	index  int
-	parent int
-	param  bool
+	Name        string
+	Type        *Type
+	Index       int
+	Parent      int
+	IsParameter bool
 }
 
-type function struct {
-	name   string
-	rtype  *Type
-	locals []local
-	blocks []block
-	index  int
-}
-
-type program struct {
-	funcs []function
+type Procedure struct {
+	name       string
+	returnType *Type
+	constants  []uint64
+	locals     []local
+	blocks     []*basicBlock
+	entryPoint *basicBlock
 }

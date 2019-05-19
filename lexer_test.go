@@ -3,7 +3,7 @@ package cube
 import "testing"
 
 func TestScanNumbers(t *testing.T) {
-	lexer := NewLexer("<source>", `
+	lexer := NewLexer(`
 		0xa0f9
 		0b10011
 		42
@@ -26,7 +26,7 @@ func TestScanNumbers(t *testing.T) {
 }
 
 func TestScanKeywords(t *testing.T) {
-	lexer := NewLexer("<source>", `
+	lexer := NewLexer(`
 		jmp
 		func
 		u64
@@ -64,7 +64,7 @@ func TestScanKeywords(t *testing.T) {
 }
 
 func TestScanIdentifiers(t *testing.T) {
-	lexer := NewLexer("<source>", `
+	lexer := NewLexer(`
 		a
 		sett
 		hëlló
@@ -88,7 +88,7 @@ func TestScanIdentifiers(t *testing.T) {
 }
 
 func TestScanIllegal(t *testing.T) {
-	lexer := NewLexer("<source>", "%")
+	lexer := NewLexer("%")
 	token := lexer.Scan()
 	if token.Type != ILLEGAL {
 		t.Fatalf("should be illegal")
@@ -96,7 +96,7 @@ func TestScanIllegal(t *testing.T) {
 }
 
 func TestScanMisc(t *testing.T) {
-	lexer := NewLexer("<source>", `
+	lexer := NewLexer(`
 	; comment ⌘
 	() {} :, _ ?
 	`)

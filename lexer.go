@@ -21,7 +21,6 @@ const eof rune = 0
 
 type Lexer struct {
 	reader   *strings.Reader
-	filename string
 	source   string
 	peek     rune
 	peekw    int
@@ -30,21 +29,16 @@ type Lexer struct {
 	position int
 }
 
-func NewLexer(filename, source string) *Lexer {
+func NewLexer(source string) *Lexer {
 	reader := strings.NewReader(source)
 	peek, peekw, _ := reader.ReadRune()
 	return &Lexer{
-		reader:   reader,
-		filename: filename,
-		source:   source,
-		peek:     peek,
-		peekw:    peekw,
-		lineno:   1,
+		reader: reader,
+		source: source,
+		peek:   peek,
+		peekw:  peekw,
+		lineno: 1,
 	}
-}
-
-func (this *Lexer) Filename() string {
-	return this.filename
 }
 
 func (this *Lexer) token(tokenType TokenType) Token {

@@ -8,31 +8,26 @@ import (
 )
 
 type unresolvedLabel struct {
-	block   int
-	insr    int
-	operand int
+	block   *basicBlock
+	succidx int
+}
+
+type Config struct {
+	Procedure func(proc *Procedure) error
+	Filename  string
+	Source    string
 }
 
 type parseContext struct {
-	lexer   *Lexer
-	program *program
-
-	peek Token
+	config *Config
+	lexer  *Lexer
+	peek   Token
 
 	localdefs        map[string]int
-	blockdefs        map[string]int
-	funcdefs         map[string]int
-	activeFunc       function
-	activeBlock      block
+	blockdefs        map[string]*basicBlock
+	activeProc       Procedure
+	activeBlock      *basicBlock
 	unresolvedLabels map[string][]unresolvedLabel
-}
-
-func newParseContext(lexer *Lexer, program *program) *parseContext {
-	return &parseContext{
-		lexer:    lexer,
-		program:  program,
-		funcdefs: map[string]int{},
-	}
 }
 
 func (this *parseContext) registerLocal(name string, dtype *Type, param bool) error {
@@ -41,29 +36,29 @@ func (this *parseContext) registerLocal(name string, dtype *Type, param bool) er
 	} else {
 		index := len(this.localdefs)
 		newlocal := local{
-			name:   name,
-			index:  index,
-			parent: index,
-			dtype:  dtype,
-			param:  true,
+			Name:        name,
+			Index:       index,
+			Parent:      index,
+			Type:        dtype,
+			IsParameter: true,
 		}
 
-		this.activeFunc.locals = append(this.activeFunc.locals, newlocal)
+		this.activeProc.locals = append(this.activeProc.locals, newlocal)
 		this.localdefs[name] = index
 		return nil
 	}
 }
 
-func (this *parseContext) lookupLocal(name string) (operand, error) {
+func (this *parseContext) lookupLocal(name string) (int, error) {
 	if local, ok := this.localdefs[name]; !ok {
 		return 0, this.error(fmt.Sprintf("undefined local '%s' referenced here", name))
 	} else {
-		return operand(local), nil
+		return local, nil
 	}
 }
 
 func (this *parseContext) error(errmsg string) error {
-	return errors.New(fmt.Sprintf("%s:%d: %s", this.lexer.Filename(), this.peek.LineNo, errmsg))
+	return errors.New(fmt.Sprintf("%s:%d: %s", this.config.Filename, this.peek.LineNo, errmsg))
 }
 
 func (this *parseContext) unexpected() error {
@@ -167,7 +162,9 @@ func (this *parseContext) vars() error {
 	}
 }
 
-func (this *parseContext) immediate() (operand, error) {
+func (this *parseContext) immediate() (int, error) {
+	var constant uint64
+
 	switch this.peek.Type {
 	case INTEGER:
 		val := this.peek.Value
@@ -180,14 +177,24 @@ func (this *parseContext) immediate() (operand, error) {
 		if num, err := strconv.ParseInt(val, base, 64); err != nil {
 			return 0, this.error(err.Error())
 		} else {
-			return operand(num), this.advance()
+			constant = uint64(num)
 		}
 	default:
 		return 0, this.unexpected()
 	}
+
+	for i, c := range this.activeProc.constants {
+		if c == constant {
+			return i, this.advance()
+		}
+	}
+
+	i := len(this.activeProc.constants)
+	this.activeProc.constants = append(this.activeProc.constants, constant)
+	return i, this.advance()
 }
 
-func (this *parseContext) local() (operand, error) {
+func (this *parseContext) local() (int, error) {
 	if ident, err := this.ident(); err != nil {
 		return 0, err
 	} else if local, err := this.lookupLocal(ident); err != nil {
@@ -197,47 +204,87 @@ func (this *parseContext) local() (operand, error) {
 	}
 }
 
-func (this *parseContext) label(opnum int) (operand, error) {
+func (this *parseContext) label(succidx int) (*basicBlock, error) {
 	if name, err := this.ident(); err != nil {
-		return 0, err
-	} else if label, ok := this.blockdefs[name]; !ok {
+		return nil, err
+	} else if block, ok := this.blockdefs[name]; !ok {
 		unresolved, _ := this.unresolvedLabels[name]
 		this.unresolvedLabels[name] = append(unresolved, unresolvedLabel{
-			block:   this.activeBlock.index,
-			insr:    len(this.activeBlock.insrs),
-			operand: opnum,
+			block:   this.activeBlock,
+			succidx: succidx,
 		})
-		return ^operand(0), nil
+		return nil, nil
 	} else {
-		return operand(label), nil
+		return block, nil
 	}
 }
 
-func (this *parseContext) resolveLabel(name string, blockid int) {
+func (this *parseContext) resolveLabel(name string, block *basicBlock) {
 	unresolved, _ := this.unresolvedLabels[name]
 	for _, u := range unresolved {
-		this.activeFunc.blocks[u.block].insrs[u.insr].operands[u.operand] = operand(blockid)
+		u.block.successors[u.succidx] = block
 	}
 	delete(this.unresolvedLabels, name)
 }
 
-func (this *parseContext) emit(opcode *OpcodeType, op0, op1, op2 operand) error {
-	this.activeBlock.insrs = append(this.activeBlock.insrs, instruction{
-		opcode:   opcode,
-		operands: [3]operand{op0, op1, op2},
+func (this *parseContext) emit(opc Opcode, op0, op1, op2 int) error {
+	this.activeBlock.Instructions = append(this.activeBlock.Instructions, instruction{
+		Opcode:   opc,
+		Operands: [3]int{op0, op1, op2},
 	})
 	return nil
 }
 
-func (this *parseContext) instruction_r(opcode *OpcodeType) error {
+func (this *parseContext) ret() error {
 	if op0, err := this.local(); err != nil {
 		return err
 	} else {
-		return this.emit(opcode, op0, 0, 0)
+		this.activeBlock.jmpcode = Opcode_RET
+		this.activeBlock.jmparg = op0
+		return nil
 	}
 }
 
-func (this *parseContext) instruction_i(opcode *OpcodeType) error {
+func (this *parseContext) jmp() error {
+	if op0, err := this.label(0); err != nil {
+		return err
+	} else {
+		this.activeBlock.jmpcode = Opcode_JMP
+		this.activeBlock.successors[0] = op0
+		return nil
+	}
+}
+
+func (this *parseContext) jnz() error {
+	if op0, err := this.local(); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op1, err := this.label(0); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op2, err := this.label(1); err != nil {
+		return err
+	} else {
+		this.activeBlock.jmpcode = Opcode_JNZ
+		this.activeBlock.jmparg = op0
+		this.activeBlock.successors[0] = op1
+		this.activeBlock.successors[1] = op2
+		return nil
+		// return this.emit(opcode, op0, op1, op2)
+	}
+}
+
+// func (this *parseContext) instruction_r(opcode *Opcode) error {
+// 	if op0, err := this.local(); err != nil {
+// 		return err
+// 	} else {
+// 		return this.emit(opcode, op0, 0, 0)
+// 	}
+// }
+
+func (this *parseContext) instruction_i(opcode Opcode) error {
 	if op0, err := this.immediate(); err != nil {
 		return err
 	} else {
@@ -245,15 +292,15 @@ func (this *parseContext) instruction_i(opcode *OpcodeType) error {
 	}
 }
 
-func (this *parseContext) instruction_l(opcode *OpcodeType) error {
-	if op0, err := this.label(0); err != nil {
-		return err
-	} else {
-		return this.emit(opcode, op0, 0, 0)
-	}
-}
+// func (this *parseContext) instruction_l(opcode *Opcode) error {
+// 	if op0, err := this.label(0); err != nil {
+// 		return err
+// 	} else {
+// 		return this.emit(opcode, op0, 0, 0)
+// 	}
+// }
 
-func (this *parseContext) instruction_rrr(opcode *OpcodeType) error {
+func (this *parseContext) instruction_rrr(opcode Opcode) error {
 	if op0, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -269,7 +316,7 @@ func (this *parseContext) instruction_rrr(opcode *OpcodeType) error {
 	}
 }
 
-func (this *parseContext) instruction_rri(opcode *OpcodeType) error {
+func (this *parseContext) instruction_rri(opcode Opcode) error {
 	if op0, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -285,21 +332,21 @@ func (this *parseContext) instruction_rri(opcode *OpcodeType) error {
 	}
 }
 
-func (this *parseContext) instruction_rll(opcode *OpcodeType) error {
-	if op0, err := this.local(); err != nil {
-		return err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return err
-	} else if op1, err := this.label(1); err != nil {
-		return err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return err
-	} else if op2, err := this.label(2); err != nil {
-		return err
-	} else {
-		return this.emit(opcode, op0, op1, op2)
-	}
-}
+// func (this *parseContext) instruction_rll(opcode *Opcode) error {
+// 	if op0, err := this.local(); err != nil {
+// 		return err
+// 	} else if _, err := this.expect(COMMA); err != nil {
+// 		return err
+// 	} else if op1, err := this.label(1); err != nil {
+// 		return err
+// 	} else if _, err := this.expect(COMMA); err != nil {
+// 		return err
+// 	} else if op2, err := this.label(2); err != nil {
+// 		return err
+// 	} else {
+// 		return this.emit(opcode, op0, op1, op2)
+// 	}
+// }
 
 func (this *parseContext) instructions() error {
 	for {
@@ -314,13 +361,11 @@ func (this *parseContext) instructions() error {
 			case ADDI:
 				err = this.instruction_rri(Opcode_ADDI)
 			case RET:
-				return this.instruction_r(Opcode_RET)
-			case RETI:
-				return this.instruction_i(Opcode_RETI)
+				return this.ret()
 			case JMP:
-				return this.instruction_l(Opcode_JMP)
+				return this.jmp()
 			case JNZ:
-				return this.instruction_rll(Opcode_JNZ)
+				return this.jnz()
 			default:
 				return this.unexpected()
 			}
@@ -333,44 +378,41 @@ func (this *parseContext) instructions() error {
 }
 
 func (this *parseContext) blocks() error {
-	this.blockdefs = map[string]int{}
+	this.blockdefs = map[string]*basicBlock{}
 	this.unresolvedLabels = map[string][]unresolvedLabel{}
 
-	for {
-		if this.peek.Type == CURLY_R {
-			return nil
-		} else if name, err := this.ident(); err != nil {
+	for do := true; do; do = this.peek.Type != CURLY_R {
+		if name, err := this.ident(); err != nil {
 			return err
 		} else if _, err := this.expect(COLON); err != nil {
 			return err
 		} else if _, exists := this.blockdefs[name]; exists {
 			return this.error(fmt.Sprintf("block %s redefined here", name))
 		} else {
-			this.activeBlock = block{
-				name:  name,
-				index: len(this.activeFunc.blocks),
+			this.activeBlock = &basicBlock{
+				Name: name,
 			}
-			this.blockdefs[name] = this.activeBlock.index
+			this.blockdefs[name] = this.activeBlock
 
-			this.resolveLabel(name, this.activeBlock.index)
+			this.resolveLabel(name, this.activeBlock)
 
 			if err := this.instructions(); err != nil {
 				return err
 			} else {
-				this.activeFunc.blocks = append(this.activeFunc.blocks, this.activeBlock)
+				this.activeProc.blocks = append(this.activeProc.blocks, this.activeBlock)
 			}
 		}
 	}
+
+	return nil
 }
 
-func (this *parseContext) function() error {
-	this.activeFunc = function{}
+func (this *parseContext) procedure() error {
+	this.activeProc = Procedure{}
 	this.localdefs = map[string]int{}
 
 	if name, err := this.ident(); err != nil {
 		return err
-	} else if _, exists := this.funcdefs[name]; exists {
-		return this.error(fmt.Sprintf("function %s redefined here", name))
 	} else if _, err := this.expect(PAREN_L); err != nil {
 		return err
 	} else if err := this.parameters(); err != nil {
@@ -397,13 +439,10 @@ func (this *parseContext) function() error {
 			return this.error(fmt.Sprintf("unresolved reference to label %s", labels[0]))
 		}
 	} else {
-		index := len(this.program.funcs)
-		this.activeFunc.index = index
-		this.activeFunc.name = name
-		this.activeFunc.rtype = rtype
-		this.funcdefs[name] = index
-		this.program.funcs = append(this.program.funcs, this.activeFunc)
-		return nil
+		this.activeProc.name = name
+		this.activeProc.returnType = rtype
+		this.activeProc.entryPoint = this.activeProc.blocks[0]
+		return this.config.Procedure(&this.activeProc)
 	}
 }
 
@@ -413,7 +452,7 @@ func (this *parseContext) definitions() error {
 		case FUNC:
 			if err := this.advance(); err != nil {
 				return err
-			} else if err := this.function(); err != nil {
+			} else if err := this.procedure(); err != nil {
 				return err
 			}
 		case EOF:
@@ -432,6 +471,9 @@ func (this *parseContext) parse() error {
 	}
 }
 
-func Parse2(lexer *Lexer, program *program) error {
-	return newParseContext(lexer, program).parse()
+func Compile(config *Config) error {
+	return (&parseContext{
+		config: config,
+		lexer:  NewLexer(config.Source),
+	}).parse()
 }
