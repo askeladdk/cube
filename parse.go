@@ -12,12 +12,6 @@ type unresolvedLabel struct {
 	succidx int
 }
 
-type Config struct {
-	Procedure func(proc *Procedure) error
-	Filename  string
-	Source    string
-}
-
 type parseContext struct {
 	config *Config
 	lexer  *Lexer
@@ -469,11 +463,4 @@ func (this *parseContext) parse() error {
 	} else {
 		return this.definitions()
 	}
-}
-
-func Compile(config *Config) error {
-	return (&parseContext{
-		config: config,
-		lexer:  NewLexer(config.Source),
-	}).parse()
 }
