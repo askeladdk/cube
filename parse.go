@@ -8,7 +8,7 @@ import (
 )
 
 type unresolvedLabel struct {
-	block   *basicBlock
+	block   *BasicBlock
 	succidx int
 }
 
@@ -24,9 +24,9 @@ type parseContext struct {
 	peek   Token
 
 	localdefs        map[string]int
-	blockdefs        map[string]*basicBlock
-	activeProc       Procedure
-	activeBlock      *basicBlock
+	blockdefs        map[string]*BasicBlock
+	curproc          Procedure
+	curblock         *BasicBlock
 	unresolvedLabels map[string][]unresolvedLabel
 }
 
@@ -35,15 +35,15 @@ func (this *parseContext) registerLocal(name string, dtype *Type, param bool) er
 		return this.error(fmt.Sprintf("local %s is redefined here", name))
 	} else {
 		index := len(this.localdefs)
-		newlocal := local{
-			Name:        name,
-			Index:       index,
-			Parent:      index,
-			Type:        dtype,
-			IsParameter: true,
+		newlocal := Local{
+			name:        name,
+			index:       index,
+			parent:      index,
+			dataType:    dtype,
+			isParameter: true,
 		}
 
-		this.activeProc.locals = append(this.activeProc.locals, newlocal)
+		this.curproc.locals = append(this.curproc.locals, newlocal)
 		this.localdefs[name] = index
 		return nil
 	}
@@ -183,14 +183,14 @@ func (this *parseContext) immediate() (int, error) {
 		return 0, this.unexpected()
 	}
 
-	for i, c := range this.activeProc.constants {
+	for i, c := range this.curproc.constants {
 		if c == constant {
 			return i, this.advance()
 		}
 	}
 
-	i := len(this.activeProc.constants)
-	this.activeProc.constants = append(this.activeProc.constants, constant)
+	i := len(this.curproc.constants)
+	this.curproc.constants = append(this.curproc.constants, constant)
 	return i, this.advance()
 }
 
@@ -204,13 +204,13 @@ func (this *parseContext) local() (int, error) {
 	}
 }
 
-func (this *parseContext) label(succidx int) (*basicBlock, error) {
+func (this *parseContext) label(succidx int) (*BasicBlock, error) {
 	if name, err := this.ident(); err != nil {
 		return nil, err
 	} else if block, ok := this.blockdefs[name]; !ok {
 		unresolved, _ := this.unresolvedLabels[name]
 		this.unresolvedLabels[name] = append(unresolved, unresolvedLabel{
-			block:   this.activeBlock,
+			block:   this.curblock,
 			succidx: succidx,
 		})
 		return nil, nil
@@ -219,7 +219,7 @@ func (this *parseContext) label(succidx int) (*basicBlock, error) {
 	}
 }
 
-func (this *parseContext) resolveLabel(name string, block *basicBlock) {
+func (this *parseContext) resolveLabel(name string, block *BasicBlock) {
 	unresolved, _ := this.unresolvedLabels[name]
 	for _, u := range unresolved {
 		u.block.successors[u.succidx] = block
@@ -228,9 +228,9 @@ func (this *parseContext) resolveLabel(name string, block *basicBlock) {
 }
 
 func (this *parseContext) emit(opc Opcode, op0, op1, op2 int) error {
-	this.activeBlock.Instructions = append(this.activeBlock.Instructions, instruction{
-		Opcode:   opc,
-		Operands: [3]int{op0, op1, op2},
+	this.curblock.instructions = append(this.curblock.instructions, Instruction{
+		opcode:   opc,
+		operands: [3]int{op0, op1, op2},
 	})
 	return nil
 }
@@ -239,8 +239,8 @@ func (this *parseContext) ret() error {
 	if op0, err := this.local(); err != nil {
 		return err
 	} else {
-		this.activeBlock.jmpcode = Opcode_RET
-		this.activeBlock.jmparg = op0
+		this.curblock.jmpcode = Opcode_RET
+		this.curblock.jmparg = op0
 		return nil
 	}
 }
@@ -249,8 +249,8 @@ func (this *parseContext) jmp() error {
 	if op0, err := this.label(0); err != nil {
 		return err
 	} else {
-		this.activeBlock.jmpcode = Opcode_JMP
-		this.activeBlock.successors[0] = op0
+		this.curblock.jmpcode = Opcode_JMP
+		this.curblock.successors[0] = op0
 		return nil
 	}
 }
@@ -267,10 +267,10 @@ func (this *parseContext) jnz() error {
 	} else if op2, err := this.label(1); err != nil {
 		return err
 	} else {
-		this.activeBlock.jmpcode = Opcode_JNZ
-		this.activeBlock.jmparg = op0
-		this.activeBlock.successors[0] = op1
-		this.activeBlock.successors[1] = op2
+		this.curblock.jmpcode = Opcode_JNZ
+		this.curblock.jmparg = op0
+		this.curblock.successors[0] = op1
+		this.curblock.successors[1] = op2
 		return nil
 		// return this.emit(opcode, op0, op1, op2)
 	}
@@ -378,7 +378,7 @@ func (this *parseContext) instructions() error {
 }
 
 func (this *parseContext) blocks() error {
-	this.blockdefs = map[string]*basicBlock{}
+	this.blockdefs = map[string]*BasicBlock{}
 	this.unresolvedLabels = map[string][]unresolvedLabel{}
 
 	for do := true; do; do = this.peek.Type != CURLY_R {
@@ -389,17 +389,17 @@ func (this *parseContext) blocks() error {
 		} else if _, exists := this.blockdefs[name]; exists {
 			return this.error(fmt.Sprintf("block %s redefined here", name))
 		} else {
-			this.activeBlock = &basicBlock{
-				Name: name,
+			this.curblock = &BasicBlock{
+				name: name,
 			}
-			this.blockdefs[name] = this.activeBlock
+			this.blockdefs[name] = this.curblock
 
-			this.resolveLabel(name, this.activeBlock)
+			this.resolveLabel(name, this.curblock)
 
 			if err := this.instructions(); err != nil {
 				return err
 			} else {
-				this.activeProc.blocks = append(this.activeProc.blocks, this.activeBlock)
+				this.curproc.blocks = append(this.curproc.blocks, this.curblock)
 			}
 		}
 	}
@@ -408,7 +408,7 @@ func (this *parseContext) blocks() error {
 }
 
 func (this *parseContext) procedure() error {
-	this.activeProc = Procedure{}
+	this.curproc = Procedure{}
 	this.localdefs = map[string]int{}
 
 	if name, err := this.ident(); err != nil {
@@ -439,10 +439,10 @@ func (this *parseContext) procedure() error {
 			return this.error(fmt.Sprintf("unresolved reference to label %s", labels[0]))
 		}
 	} else {
-		this.activeProc.name = name
-		this.activeProc.returnType = rtype
-		this.activeProc.entryPoint = this.activeProc.blocks[0]
-		return this.config.Procedure(&this.activeProc)
+		this.curproc.name = name
+		this.curproc.returnType = rtype
+		this.curproc.entryPoint = this.curproc.blocks[0]
+		return this.config.Procedure(&this.curproc)
 	}
 }
 

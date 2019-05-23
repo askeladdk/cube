@@ -1,10 +1,10 @@
 package cube
 
-func reachable(root *basicBlock, blocks []*basicBlock) []*basicBlock {
-	visited := map[*basicBlock]struct{}{}
-	var result []*basicBlock
-	var recurse func(*basicBlock)
-	recurse = func(blk *basicBlock) {
+func reachable(root *BasicBlock, blocks []*BasicBlock) []*BasicBlock {
+	visited := map[*BasicBlock]struct{}{}
+	var result []*BasicBlock
+	var recurse func(*BasicBlock)
+	recurse = func(blk *BasicBlock) {
 		if _, hasvisited := visited[blk]; !hasvisited {
 			visited[blk] = struct{}{}
 			result = append(result, blk)
@@ -14,7 +14,7 @@ func reachable(root *basicBlock, blocks []*basicBlock) []*basicBlock {
 	return result
 }
 
-func predecessors(blocks []*basicBlock) []*basicBlock {
+func predecessors(blocks []*BasicBlock) []*BasicBlock {
 	for _, blk := range blocks {
 		blk.predecessors = nil
 	}
@@ -35,17 +35,17 @@ func predecessors(blocks []*basicBlock) []*basicBlock {
 	return blocks
 }
 
-func topologicalSort(blocks []*basicBlock) []*basicBlock {
-	var stack []*basicBlock
-	var result []*basicBlock
+func topologicalSort(blocks []*BasicBlock) []*BasicBlock {
+	var stack []*BasicBlock
+	var result []*BasicBlock
 
 	index := 0
-	onstack := map[*basicBlock]struct{}{}
-	lowlinks := map[*basicBlock]int{}
-	indices := map[*basicBlock]int{}
+	onstack := map[*BasicBlock]struct{}{}
+	lowlinks := map[*BasicBlock]int{}
+	indices := map[*BasicBlock]int{}
 
-	var strongconnect func(*basicBlock)
-	strongconnect = func(blk *basicBlock) {
+	var strongconnect func(*BasicBlock)
+	strongconnect = func(blk *BasicBlock) {
 		indices[blk] = index
 		lowlinks[blk] = index
 		onstack[blk] = struct{}{}
@@ -69,7 +69,7 @@ func topologicalSort(blocks []*basicBlock) []*basicBlock {
 
 		sccomponent := 0
 		if lowlinks[blk] == indices[blk] {
-			var item *basicBlock
+			var item *BasicBlock
 			end := len(stack)
 			for ok := true; ok; ok = item != blk {
 				end -= 1

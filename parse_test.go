@@ -15,7 +15,7 @@ func TestParse_1(t *testing.T) {
 		Filename: "test.cubeasm",
 		Source:   source,
 		Procedure: func(proc *Procedure) error {
-			if proc.blocks[0].Name != "entry" {
+			if proc.blocks[0].name != "entry" {
 				t.Fatalf("wrong block name")
 			} else if proc.blocks[0].jmparg != 1 {
 				t.Fatalf("wrong operand")
