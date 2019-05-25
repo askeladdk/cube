@@ -17,7 +17,7 @@ func TestParse_1(t *testing.T) {
 		Procedure: func(proc *Procedure) error {
 			if proc.blocks[0].name != "entry" {
 				t.Fatalf("wrong block name")
-			} else if proc.blocks[0].jmparg != 1 {
+			} else if proc.blocks[0].jmpretarg != 1 {
 				t.Fatalf("wrong operand")
 			}
 			return nil

@@ -234,8 +234,8 @@ func (this *parseContext) ret() error {
 		return err
 	} else {
 		this.curblock.jmpcode = Opcode_RET
-		this.curblock.jmparg = op0
-		return nil
+		this.curblock.jmpretarg = op0
+		return this.emit(Opcode_RET, op0, 0, 0)
 	}
 }
 
@@ -245,7 +245,7 @@ func (this *parseContext) jmp() error {
 	} else {
 		this.curblock.jmpcode = Opcode_JMP
 		this.curblock.successors[0] = op0
-		return nil
+		return this.emit(Opcode_JMP, 0, 0, 0)
 	}
 }
 
@@ -260,13 +260,16 @@ func (this *parseContext) jnz() error {
 		return err
 	} else if op2, err := this.label(1); err != nil {
 		return err
+	} else if op1 == op2 {
+		this.curblock.jmpcode = Opcode_JMP
+		this.curblock.successors[0] = op1
+		return this.emit(Opcode_JMP, 0, 0, 0)
 	} else {
 		this.curblock.jmpcode = Opcode_JNZ
-		this.curblock.jmparg = op0
+		this.curblock.jmpretarg = op0
 		this.curblock.successors[0] = op1
 		this.curblock.successors[1] = op2
-		return nil
-		// return this.emit(opcode, op0, op1, op2)
+		return this.emit(Opcode_JNZ, op0, 0, 1)
 	}
 }
 

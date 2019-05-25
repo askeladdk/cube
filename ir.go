@@ -11,7 +11,8 @@ type BasicBlock struct {
 
 	sccomponent  int
 	jmpcode      Opcode
-	jmparg       int
+	jmpretarg    int
+	jmpargs      [2][]int
 	successors   [2]*BasicBlock
 	predecessors []*BasicBlock
 }
