@@ -125,13 +125,11 @@ var keywords = []struct {
 }{
 	// must be in alphabetical order
 	{"add", ADD},
-	{"addi", ADDI},
 	{"func", FUNC},
 	{"jmp", JMP},
 	{"jnz", JNZ},
 	{"mul", MUL},
 	{"ret", RET},
-	{"reti", RETI},
 	{"set", SET},
 	{"sub", SUB},
 	{"u64", U64},

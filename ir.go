@@ -1,8 +1,8 @@
 package cube
 
 type Instruction struct {
-	opcode   Opcode
-	operands [3]int
+	opcode   opcode
+	operands [3]operand
 }
 
 type BasicBlock struct {
@@ -10,7 +10,8 @@ type BasicBlock struct {
 	instructions []Instruction
 
 	sccomponent  int
-	jmpcode      Opcode
+	ssaparams    []int
+	jmpcode      opcode
 	jmpretarg    int
 	jmpargs      [2][]int
 	successors   [2]*BasicBlock
@@ -20,9 +21,14 @@ type BasicBlock struct {
 type Local struct {
 	name        string
 	dataType    *Type
-	index       int
-	parent      int
+	generations int
+	lastssareg  int
 	isParameter bool
+}
+
+type SSAReg struct {
+	local      *Local
+	generation int
 }
 
 type Procedure struct {
@@ -30,6 +36,7 @@ type Procedure struct {
 	returnType *Type
 	constants  []uint64
 	locals     []Local
+	ssaregs    []SSAReg
 	blocks     []*BasicBlock
 	entryPoint *BasicBlock
 }

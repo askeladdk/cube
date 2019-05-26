@@ -7,7 +7,7 @@ func TestParse_1(t *testing.T) {
 	func plusone(a u64) u64 {
 		var b u64
 		entry:
-			addi b, a, 1
+			add b, a, 1
 			ret b
 	}`
 
@@ -45,11 +45,9 @@ func TestParse_2(t *testing.T) {
 		Filename: "test.cubeasm",
 		Source:   source,
 		Procedure: func(proc *Procedure) error {
-			blks0 := proc.blocks
-			blks1 := reachable(proc.entryPoint, blks0)
-			blks2 := predecessors(blks1)
-			blks3 := topologicalSort(blks2)
-			_ = blks3
+			if len(proc.blocks) != 7 {
+				t.Fatalf("wrong nr of blocks")
+			}
 			return nil
 		},
 	})

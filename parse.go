@@ -31,8 +31,6 @@ func (this *parseContext) registerLocal(name string, dtype *Type, param bool) er
 		index := len(this.localdefs)
 		newlocal := Local{
 			name:        name,
-			index:       index,
-			parent:      index,
 			dataType:    dtype,
 			isParameter: true,
 		}
@@ -156,36 +154,29 @@ func (this *parseContext) vars() error {
 	}
 }
 
-func (this *parseContext) immediate() (int, error) {
-	var constant uint64
-
-	switch this.peek.Type {
-	case INTEGER:
-		val := this.peek.Value
-
-		base := 0
-		if len(val) > 1 && val[0] == '0' && val[1] == 'b' {
-			base = 2
-		}
-
-		if num, err := strconv.ParseInt(val, base, 64); err != nil {
-			return 0, this.error(err.Error())
-		} else {
-			constant = uint64(num)
-		}
-	default:
-		return 0, this.unexpected()
+func parseInt(val string) (uint64, error) {
+	base := 0
+	if len(val) > 1 && val[0] == '0' && val[1] == 'b' {
+		base = 2
 	}
 
+	if num, err := strconv.ParseInt(val, base, 64); err != nil {
+		return 0, err
+	} else {
+		return uint64(num), nil
+	}
+}
+
+func (this *parseContext) constant(num uint64) int {
 	for i, c := range this.curproc.constants {
-		if c == constant {
-			return i, this.advance()
+		if c == num {
+			return i
 		}
 	}
 
 	i := len(this.curproc.constants)
-	this.curproc.constants = append(this.curproc.constants, constant)
-	return i, this.advance()
+	this.curproc.constants = append(this.curproc.constants, num)
+	return i
 }
 
 func (this *parseContext) local() (int, error) {
@@ -195,6 +186,25 @@ func (this *parseContext) local() (int, error) {
 		return 0, err
 	} else {
 		return local, nil
+	}
+}
+
+func (this *parseContext) atom() (operand, error) {
+	switch this.peek.Type {
+	case INTEGER:
+		if num, err := parseInt(this.peek.Value); err != nil {
+			return operandNil, this.error(err.Error())
+		} else {
+			return operandCon(this.constant(num)), this.advance()
+		}
+	case IDENT:
+		if local, err := this.lookupLocal(this.peek.Value); err != nil {
+			return operandNil, err
+		} else {
+			return operandLoc(local), this.advance()
+		}
+	default:
+		return operandNil, this.unexpected()
 	}
 }
 
@@ -221,21 +231,21 @@ func (this *parseContext) resolveLabel(name string, block *BasicBlock) {
 	delete(this.unresolvedLabels, name)
 }
 
-func (this *parseContext) emit(opc Opcode, op0, op1, op2 int) error {
+func (this *parseContext) emit(opc opcode, op0, op1, op2 operand) error {
 	this.curblock.instructions = append(this.curblock.instructions, Instruction{
 		opcode:   opc,
-		operands: [3]int{op0, op1, op2},
+		operands: [3]operand{op0, op1, op2},
 	})
 	return nil
 }
 
 func (this *parseContext) ret() error {
-	if op0, err := this.local(); err != nil {
+	if op1, err := this.atom(); err != nil {
 		return err
 	} else {
-		this.curblock.jmpcode = Opcode_RET
-		this.curblock.jmpretarg = op0
-		return this.emit(Opcode_RET, op0, 0, 0)
+		this.curblock.jmpcode = opcode_RET
+		this.curblock.jmpretarg = op1.value
+		return this.emit(opcode_RET, operandNil, op1, operandNil)
 	}
 }
 
@@ -243,9 +253,9 @@ func (this *parseContext) jmp() error {
 	if op0, err := this.label(0); err != nil {
 		return err
 	} else {
-		this.curblock.jmpcode = Opcode_JMP
+		this.curblock.jmpcode = opcode_JMP
 		this.curblock.successors[0] = op0
-		return this.emit(Opcode_JMP, 0, 0, 0)
+		return this.emit(opcode_JMP, operandNil, operandNil, operandNil)
 	}
 }
 
@@ -261,89 +271,33 @@ func (this *parseContext) jnz() error {
 	} else if op2, err := this.label(1); err != nil {
 		return err
 	} else if op1 == op2 {
-		this.curblock.jmpcode = Opcode_JMP
+		this.curblock.jmpcode = opcode_JMP
 		this.curblock.successors[0] = op1
-		return this.emit(Opcode_JMP, 0, 0, 0)
+		return this.emit(opcode_JMP, operandNil, operandNil, operandNil)
 	} else {
-		this.curblock.jmpcode = Opcode_JNZ
+		this.curblock.jmpcode = opcode_JNZ
 		this.curblock.jmpretarg = op0
 		this.curblock.successors[0] = op1
 		this.curblock.successors[1] = op2
-		return this.emit(Opcode_JNZ, op0, 0, 1)
+		return this.emit(opcode_JNZ, operandNil, operandLoc(op0), operandNil)
 	}
 }
 
-// func (this *parseContext) instruction_r(opcode *Opcode) error {
-// 	if op0, err := this.local(); err != nil {
-// 		return err
-// 	} else {
-// 		return this.emit(opcode, op0, 0, 0)
-// 	}
-// }
-
-func (this *parseContext) instruction_i(opcode Opcode) error {
-	if op0, err := this.immediate(); err != nil {
+func (this *parseContext) instruction_raa(opc opcode) error {
+	if dstloc, err := this.local(); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op1, err := this.atom(); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op2, err := this.atom(); err != nil {
 		return err
 	} else {
-		return this.emit(opcode, op0, 0, 0)
+		return this.emit(opc, operandLoc(dstloc), op1, op2)
 	}
 }
-
-// func (this *parseContext) instruction_l(opcode *Opcode) error {
-// 	if op0, err := this.label(0); err != nil {
-// 		return err
-// 	} else {
-// 		return this.emit(opcode, op0, 0, 0)
-// 	}
-// }
-
-func (this *parseContext) instruction_rrr(opcode Opcode) error {
-	if op0, err := this.local(); err != nil {
-		return err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return err
-	} else if op1, err := this.local(); err != nil {
-		return err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return err
-	} else if op2, err := this.local(); err != nil {
-		return err
-	} else {
-		return this.emit(opcode, op0, op1, op2)
-	}
-}
-
-func (this *parseContext) instruction_rri(opcode Opcode) error {
-	if op0, err := this.local(); err != nil {
-		return err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return err
-	} else if op1, err := this.local(); err != nil {
-		return err
-	} else if _, err := this.expect(COMMA); err != nil {
-		return err
-	} else if op2, err := this.immediate(); err != nil {
-		return err
-	} else {
-		return this.emit(opcode, op0, op1, op2)
-	}
-}
-
-// func (this *parseContext) instruction_rll(opcode *Opcode) error {
-// 	if op0, err := this.local(); err != nil {
-// 		return err
-// 	} else if _, err := this.expect(COMMA); err != nil {
-// 		return err
-// 	} else if op1, err := this.label(1); err != nil {
-// 		return err
-// 	} else if _, err := this.expect(COMMA); err != nil {
-// 		return err
-// 	} else if op2, err := this.label(2); err != nil {
-// 		return err
-// 	} else {
-// 		return this.emit(opcode, op0, op1, op2)
-// 	}
-// }
 
 func (this *parseContext) instructions() error {
 	for {
@@ -354,9 +308,7 @@ func (this *parseContext) instructions() error {
 			var err error
 			switch tokenType {
 			case ADD:
-				err = this.instruction_rrr(Opcode_ADD)
-			case ADDI:
-				err = this.instruction_rri(Opcode_ADDI)
+				err = this.instruction_raa(opcode_ADD)
 			case RET:
 				return this.ret()
 			case JMP:

@@ -20,11 +20,9 @@ const (
 	FUNC
 	SET
 	RET
-	RETI
 	JMP
 	JNZ
 	ADD
-	ADDI
 	SUB
 	MUL
 	VAR

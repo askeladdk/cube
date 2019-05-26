@@ -8,6 +8,11 @@ func reachable(root *BasicBlock, blocks []*BasicBlock) []*BasicBlock {
 		if _, hasvisited := visited[blk]; !hasvisited {
 			visited[blk] = struct{}{}
 			result = append(result, blk)
+			for _, succ := range blk.successors {
+				if succ != nil {
+					recurse(succ)
+				}
+			}
 		}
 	}
 	recurse(root)
@@ -35,6 +40,7 @@ func predecessors(blocks []*BasicBlock) []*BasicBlock {
 	return blocks
 }
 
+// tarjan's strongly connected components algorithm
 func topologicalSort(blocks []*BasicBlock) []*BasicBlock {
 	var stack []*BasicBlock
 	var result []*BasicBlock
@@ -94,4 +100,11 @@ func topologicalSort(blocks []*BasicBlock) []*BasicBlock {
 	}
 
 	return result
+}
+
+func Pass_BuildCFG(proc *Procedure) *Procedure {
+	blks1 := reachable(proc.entryPoint, proc.blocks)
+	blks2 := predecessors(blks1)
+	proc.blocks = topologicalSort(blks2)
+	return proc
 }
