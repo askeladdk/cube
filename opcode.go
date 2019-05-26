@@ -6,9 +6,9 @@ const (
 	opcode_ADD opcode = iota
 	opcode_JMP
 	opcode_JNZ
+	opcode_MOV
 	opcode_MUL
 	opcode_RET
-	opcode_SET
 	opcode_SUB
 )
 

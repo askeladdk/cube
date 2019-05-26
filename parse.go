@@ -299,6 +299,18 @@ func (this *parseContext) instruction_raa(opc opcode) error {
 	}
 }
 
+func (this *parseContext) instruction_ra(opc opcode) error {
+	if dstloc, err := this.local(); err != nil {
+		return err
+	} else if _, err := this.expect(COMMA); err != nil {
+		return err
+	} else if op1, err := this.atom(); err != nil {
+		return err
+	} else {
+		return this.emit(opc, operandLoc(dstloc), op1, operandNil)
+	}
+}
+
 func (this *parseContext) instructions() error {
 	for {
 		tokenType := this.peek.Type
@@ -309,6 +321,10 @@ func (this *parseContext) instructions() error {
 			switch tokenType {
 			case ADD:
 				err = this.instruction_raa(opcode_ADD)
+			case SUB:
+				err = this.instruction_raa(opcode_SUB)
+			case MOV:
+				err = this.instruction_ra(opcode_MOV)
 			case RET:
 				return this.ret()
 			case JMP:

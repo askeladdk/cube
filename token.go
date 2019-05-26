@@ -18,7 +18,7 @@ const (
 	U64
 	IDENT
 	FUNC
-	SET
+	MOV
 	RET
 	JMP
 	JNZ

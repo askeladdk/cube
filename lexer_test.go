@@ -31,7 +31,7 @@ func TestScanKeywords(t *testing.T) {
 		func
 		u64
 		jnz
-		set
+		mov
 		sub
 		add
 		mul
@@ -44,7 +44,7 @@ func TestScanKeywords(t *testing.T) {
 		FUNC,
 		U64,
 		JNZ,
-		SET,
+		MOV,
 		SUB,
 		ADD,
 		MUL,
