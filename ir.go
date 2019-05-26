@@ -12,7 +12,7 @@ type BasicBlock struct {
 	sccomponent  int
 	ssaparams    []int
 	jmpcode      opcode
-	jmpretarg    int
+	jmpretval    operand
 	jmpargs      [2][]int
 	successors   [2]*BasicBlock
 	predecessors []*BasicBlock

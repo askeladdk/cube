@@ -244,7 +244,7 @@ func (this *parseContext) ret() error {
 		return err
 	} else {
 		this.curblock.jmpcode = opcode_RET
-		this.curblock.jmpretarg = op1.value
+		this.curblock.jmpretval = op1
 		return this.emit(opcode_RET, operandNil, op1, operandNil)
 	}
 }
@@ -276,7 +276,7 @@ func (this *parseContext) jnz() error {
 		return this.emit(opcode_JMP, operandNil, operandNil, operandNil)
 	} else {
 		this.curblock.jmpcode = opcode_JNZ
-		this.curblock.jmpretarg = op0
+		this.curblock.jmpretval = operandLoc(op0)
 		this.curblock.successors[0] = op1
 		this.curblock.successors[1] = op2
 		return this.emit(opcode_JNZ, operandNil, operandLoc(op0), operandNil)
