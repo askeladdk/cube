@@ -56,6 +56,10 @@ func reallycrudessa(proc *Procedure) (*Procedure, error) {
 				}
 			}
 		}
+
+		if otype, val := blk.jmpretval.unpack(); otype == operandType_LOC {
+			blk.jmpretval = operandReg(ssause(val))
+		}
 	}
 
 	return proc, nil
