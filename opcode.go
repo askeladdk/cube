@@ -1,15 +1,21 @@
 package cube
 
-type opcode int
+type opcode struct {
+	name string
+}
 
-const (
-	opcode_ADD opcode = iota
-	opcode_JMP
-	opcode_JNZ
-	opcode_MOV
-	opcode_MUL
-	opcode_RET
-	opcode_SUB
+func (this *opcode) String() string {
+	return this.name
+}
+
+var (
+	opcode_ADD = &opcode{"add"}
+	opcode_JMP = &opcode{"jmp"}
+	opcode_JNZ = &opcode{"jnz"}
+	opcode_MOV = &opcode{"mov"}
+	opcode_MUL = &opcode{"mul"}
+	opcode_RET = &opcode{"ret"}
+	opcode_SUB = &opcode{"sub"}
 )
 
 type operandType int

@@ -1,20 +1,25 @@
 package cube
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSSA_1(t *testing.T) {
 	source := `
-	func foo(a u64, b u64) u64 {
-	var c u64
+	func pow(b u64, e u64) u64 {
+	var r u64
 	entry:
-		add a, a, a
-		jmp label2
-	label2:
-		add b, b, b
-		jmp label3
-	label3:
-		add c, a, b
-		ret c
+		mov r, 1
+		jmp loop
+	loop:
+		jnz e, done, body
+	body:
+		mul r, r, b
+		sub e, e, 1
+		jmp loop
+	done:
+		ret r
 	}`
 
 	err := Compile(&Config{
@@ -23,6 +28,10 @@ func TestSSA_1(t *testing.T) {
 		Procedure: func(proc *Procedure) error {
 			proc = Pass_BuildCFG(proc)
 			proc, _ = reallycrudessa(proc)
+			var sb strings.Builder
+			printproc(&sb, proc)
+			s := sb.String()
+			_ = s
 			return nil
 		},
 	})

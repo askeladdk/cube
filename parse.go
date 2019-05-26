@@ -32,7 +32,7 @@ func (this *parseContext) registerLocal(name string, dtype *Type, param bool) er
 		newlocal := Local{
 			name:        name,
 			dataType:    dtype,
-			isParameter: true,
+			isParameter: param,
 		}
 
 		this.curproc.locals = append(this.curproc.locals, newlocal)
@@ -231,7 +231,7 @@ func (this *parseContext) resolveLabel(name string, block *BasicBlock) {
 	delete(this.unresolvedLabels, name)
 }
 
-func (this *parseContext) emit(opc opcode, op0, op1, op2 operand) error {
+func (this *parseContext) emit(opc *opcode, op0, op1, op2 operand) error {
 	this.curblock.instructions = append(this.curblock.instructions, Instruction{
 		opcode:   opc,
 		operands: [3]operand{op0, op1, op2},
@@ -245,7 +245,7 @@ func (this *parseContext) ret() error {
 	} else {
 		this.curblock.jmpcode = opcode_RET
 		this.curblock.jmpretval = op1
-		return this.emit(opcode_RET, operandNil, op1, operandNil)
+		return nil
 	}
 }
 
@@ -255,7 +255,7 @@ func (this *parseContext) jmp() error {
 	} else {
 		this.curblock.jmpcode = opcode_JMP
 		this.curblock.successors[0] = op0
-		return this.emit(opcode_JMP, operandNil, operandNil, operandNil)
+		return nil
 	}
 }
 
@@ -270,20 +270,16 @@ func (this *parseContext) jnz() error {
 		return err
 	} else if op2, err := this.label(1); err != nil {
 		return err
-	} else if op1 == op2 {
-		this.curblock.jmpcode = opcode_JMP
-		this.curblock.successors[0] = op1
-		return this.emit(opcode_JMP, operandNil, operandNil, operandNil)
 	} else {
 		this.curblock.jmpcode = opcode_JNZ
 		this.curblock.jmpretval = operandLoc(op0)
 		this.curblock.successors[0] = op1
 		this.curblock.successors[1] = op2
-		return this.emit(opcode_JNZ, operandNil, operandLoc(op0), operandNil)
+		return nil
 	}
 }
 
-func (this *parseContext) instruction_raa(opc opcode) error {
+func (this *parseContext) instruction_raa(opc *opcode) error {
 	if dstloc, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -299,7 +295,7 @@ func (this *parseContext) instruction_raa(opc opcode) error {
 	}
 }
 
-func (this *parseContext) instruction_ra(opc opcode) error {
+func (this *parseContext) instruction_ra(opc *opcode) error {
 	if dstloc, err := this.local(); err != nil {
 		return err
 	} else if _, err := this.expect(COMMA); err != nil {
@@ -323,6 +319,8 @@ func (this *parseContext) instructions() error {
 				err = this.instruction_raa(opcode_ADD)
 			case SUB:
 				err = this.instruction_raa(opcode_SUB)
+			case MUL:
+				err = this.instruction_raa(opcode_MUL)
 			case MOV:
 				err = this.instruction_ra(opcode_MOV)
 			case RET:

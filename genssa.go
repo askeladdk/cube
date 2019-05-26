@@ -12,6 +12,7 @@ func reallycrudessa(proc *Procedure) (*Procedure, error) {
 		})
 		local.generations += 1
 		local.lastssareg = ssaregidx
+		local.isDefined = true
 		return ssaregidx
 	}
 
@@ -20,10 +21,16 @@ func reallycrudessa(proc *Procedure) (*Procedure, error) {
 		return local.lastssareg
 	}
 
+	for localidx, _ := range proc.locals {
+		proc.locals[localidx].isDefined = proc.locals[localidx].isParameter
+	}
+
 	for _, blk := range proc.blocks {
 		for localidx, _ := range proc.locals {
-			ssaregidx := ssadef(localidx)
-			blk.ssaparams = append(blk.ssaparams, ssaregidx)
+			if proc.locals[localidx].isDefined {
+				ssaregidx := ssadef(localidx)
+				blk.ssaparams = append(blk.ssaparams, ssaregidx)
+			}
 		}
 
 		for i, _ := range blk.instructions {
